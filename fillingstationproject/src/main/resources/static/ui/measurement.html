@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Measurement Details</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.v1.js"></script>
+    <script src="../script/ui.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+            privilages = httpRequest("../privilages?module=measurement","GET");
+
+            regexes = httpRequest("../regexes/measurement","GET");
+
+            //txtTotal.setAttribute("data-pattern",regexes.nettotal.regex);
+            txtAmount.setAttribute("data-pattern",regexes.amount.regex);
+
+
+            employees = httpRequest("../employees/list","GET");
+            tanks = httpRequest("../tanks/list","GET");
+            readings = httpRequest("../readings/list","GET");
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+
+        }
+
+        function loadView() {
+
+            //Search Area
+            txtSearchTime.value="";
+            txtSearchTime.style.background = "";
+            fillCombo(cmbSearchtank,"Tank",tanks,"code","");
+            cmbSearchtank.style.background = "";
+
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            var query = "&time=&tankid=";
+            loadTable(1,cmbPageSize.value,query);
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            measurements = new Array();
+            var data = httpRequest("/measurements?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) measurements = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblMeasurement',measurements,fillForm);
+            clearSelection(tblMeasurement);
+            if(activerowno!="")selectRow(tblMeasurement,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldmeasurement==null){
+                paginate=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno=""
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+        function loadForm() {
+            measurement = new Object();
+            oldmeasurement = null;
+            fillCombo(cmbTank,"",tanks,"code","");
+            fillCombo(cmbAReading,"",readings,"time","");
+            fillCombo(cmbNReading,"",readings,"time","");
+
+            fillCombo(cmbEmployee,"",employees,"callingname",session.getObject("user").employeeId.callingname);
+
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var datee = today.getDate();
+            if(datee<10) datee = "0"+datee;
+
+            dteDOEnter.value=today.getFullYear()+"-"+month+"-"+datee;
+            //alert( dteDOEnter.value);
+
+            measurement.entereddate=dteDOEnter.value;
+            measurement.tankId=JSON.parse(cmbTank.value);
+            measurement.readingId=JSON.parse(cmbAReading.value);
+            measurement.readingId=JSON.parse(cmbNReading.value);
+
+            measurement.employeeId = JSON.parse(cmbEmployee.value);
+
+            cmbEmployee.disabled = "disabled";
+
+
+            txtAmount.value = "";
+
+
+
+            setStyle(initial);
+            cmbTank.style.background=initial;
+            cmbEmployee.style.background=valid;
+            dteDOEnter.style.background=valid;
+            dteDOEnter.disabled="disabled";
+            disableButtons(false, true, true);
+        }
+
+        function setStyle(style) {
+
+            txtAmount.style.background = style;
+            dteDOEnter.style.background = style;
+            cmbTank.style.background = style;
+            cmbAReading.style.background = style;
+            cmbNReading.style.background = style;
+            cmbEmployee.style.background = style;
+
+        }
+
+        function disableButtons(add, upd, del) {
+
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+        }
+
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (reading.amount == null)
+                errors = errors + "\n" + regexes.payno.message;
+
+            if (reading.tankId == null)
+                errors = errors + "\n" + "Tank is Not Selected";
+
+            if (reading.afternoonreadingId == null)
+                errors = errors + "\n" + "Afternoon reading is Not Selected";
+
+            if (reading.nightreadingId == null)
+                errors = errors + "\n" + "Night reading is Not Selected";
+
+            if (reading.measuredtime == null)
+                errors = errors + "\n" + "Time is Not Selected";
+
+            if (reading.employeeId == null)
+                errors = errors + "\n" + "Employee is Not Selected";
+
+
+            return errors;
+
+        }
+
+        function btnAddMC() {
+
+            var errors = getErrors();
+
+            if(errors=="") {
+                var option = window.confirm("Are you sure to add following Employee ?\n" +
+                    "\nTime : " + measurement.measuredtime +
+                    "\nAmount : " + measurement.amount +
+                    "\nAfternoon reading : " + measurement.afternoonreadingId +
+                    "\nNight reading : " + measurement.nightreadingId +
+                    "\nTank : " + measurement.tankId +
+                    "\nEntered Employee : " + measurement.employeeId.callingname);
+
+                if(option==true) {
+                    var response = httpRequest("/measurements","POST",measurement);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following Errors\n"+errors); }
+
+        }
+
+        function btnClearMC() {
+            //Get Cofirmation from the User window.confirm();
+
+            var clear;
+            if(oldmeasurement==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblMeasurement);
+            }
+
+
+
+
+        }
+
+        function fillForm(mea,rowno){
+            activerowno = rowno;
+            var filling;
+            if(oldmeasurement==null){
+                filling=true;
+            }else{
+
+                if(getErrors()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblMeasurement);
+                selectRow(tblMeasurement,activerowno,active);
+
+                measurement = JSON.parse(JSON.stringify(mea));
+                oldmeasurement = JSON.parse(JSON.stringify(mea));
+
+                txtAmount.value = measurement.amount;
+                dteDOEnter.value = measurement.date;
+                timeDOEnter.value = measurement.time;
+
+
+                fillCombo(cmbEmployee, "Select Employee", employees, "callingname", measurement.employeeId.callingname);
+                fillCombo(cmbTank, "Select Tank", tanks, "code", measurement.tankId.code);
+                fillCombo(cmbAReading, "Select Afternoon Reading", meters, "afternoonreadingId", measurement.afternoonreadingId.time);
+                fillCombo(cmbEReading, "Select Night Reading", meters, "nightreadingId", measurement.nightreadingId.time);
+                cmbMeter.style.background= valid;
+                dteDOEnter.style.background=valid;
+
+                disableButtons(true, false, false);
+                setStyle(valid);
+            }
+
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(reading!=null && oldreading!=null) {
+
+                if (measurement.amount != oldmeasurement.amount)
+                    updates = updates + "\nAmount is Changed";
+
+                if (measurement.measuredtime != oldmeasurement.measuredtime)
+                    updates = updates + "\nTime is Changed";
+
+                if (measurement.afternoonreadingId != oldmeasurement.afternoonreadingId)
+                    updates = updates + "\nAfternoon reading is Changed";
+
+                if (measurement.nightreadingId != oldmeasurement.nightreadingId)
+                    updates = updates + "\nNight reading is Changed";
+
+                if (measurement.tankId != oldmeasurement.tankId)
+                    updates = updates + "\nTank is Changed";
+
+                if (measurement.employeeId != oldmeasurement.employeeId)
+                    updates = updates + "\nEmployee is Changed";
+
+
+
+
+            }
+
+            return updates;
+        }
+
+        function btnUpdateMC() {
+            var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/measurements","PUT",measurement);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+
+
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+            var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Time : " +measurement.measuredtime+ "\nTank : " +reading.tankId.code);
+
+            if(option==true) {
+                var response = httpRequest("/measurements","DELETE",measurement);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    loadForm();
+                    loadSearchedTable();
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable() {
+
+            var time = txtSearchTime.value;
+            var tank = cmbSearchtank.value;
+
+            var tankid="";
+            if(tank!="Tank")
+            {  tankid = JSON.parse(tank).id;
+                cmbSearchtank.style.background = active; }
+
+            if(time!=""){  txtSearchTime.style.background = active; }
+
+
+            var query ="&time=&tankid=";
+
+            if(time!="" || tankid!="" )
+                query = "&time" + time + "&tankid=" + tankid;
+
+            window.alert(query);
+            loadTable(activepage, cmbPageSize.value, query);
+
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+    </script>
+
+
+
+</head>
+
+<body style="height:1000px;">
+<div class="container-fluid" style="background-color: #0c5460">
+    <h3 style="color: #FFFFE3">MEASUREMENT MANAGEMENT</h3>
+    <ul class="nav nav-tabs">
+        <li class="active"><a data-toggle="tab" href="#AddMeasurement">Add Measurement</a></li>
+        <li><a data-toggle="tab" href="#ViewMeasurement">View Measurement</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="AddMeasurment" class="tab-pane fade in active">
+            <div class="row" id="ui">
+                <div class="col-md-12">
+                    <div class="panel panel-primary" style="margin-top: 10px;">
+
+                        <div class="panel-body"   style="background-image: url('../image/station.jpg');background-repeat: no-repeat;background-size: 1100px 400px" >
+                            <div class="row">
+
+                                <div class="col-md-7" id="form">
+                                    <form class="form-horizontal" onsubmit="return false" id="measurementform" >
+
+                                        <script>
+
+                                            // Defining UI-Componnets and Layouts
+                                            // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                                            timeField('measurementform','timeDOEnter','Measured Time<span style="color:red;font-size:20px">*<span>','Enter Time',4,"",'measurement','measuredtime','oldreading');
+                                            textField('measurementform','txtAmount','Amount<span style="color:red;font-size:20px">*<span>','Enter Amount here','',4,"",'measurement','amount','oldreading');
+                                            comboBox('measurementform','cmbAReading','Afternoon Reading<span style="color:red;font-size:20px">*<span>',4,"",'measurement','afternoonreadingId','oldreading');
+                                            comboBox('measurementform','cmbNReading','Night reading<span style="color:red;font-size:20px">*<span>',4,"",'measurement','nightreadingId','oldreading');
+                                            dateField('measurementform','dteDOEnter','Entered Date<span style="color:red;font-size:20px">*<span>','Select Enter Date',4,"",'measurement','entereddate','oldreading');
+                                            comboBox('measurementform','cmbTank','Choose Tank<span style="color:red;font-size:20px">*<span>',4,"",'measurement','tankId','oldreading');
+                                            comboBox('measurementform','cmbEmployee','Entered Employee<span style="color:red;font-size:20px">*<span>',4,'measurement','employeeId','oldreading');
+
+                                            // Custom UI-Componnets and Layouting
+
+                                        </script>
+
+
+
+
+                                        <div class="text-right">
+                                            <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                                            <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                                            <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                                            <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                                        </div>
+
+
+                                    </form>
+
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="ViewMeasurement" class="tab-pane fade ">
+
+            <div class="col-md-12" id="measurementview">
+                <form class="form-inline" onsubmit="return false">
+                    <div class="form-group form-group-sm">
+                        <input placeholder="Search By Time" class="form-control" type="text" id="txtSearchTime"/>
+                    </div>
+                    <div class="form-group form-group-sm">
+                        <select class="form-control" id="cmbSearchtank"></select>
+                    </div>
+
+                    <input type="button" class="btn btn-warning btn-sm" value="Clear" id="btnSearchClear"/>
+                    <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                </form>
+                <hr/>
+                <div class="table-responsive" id="tableParent">
+
+                    <script>
+
+
+                        var metadata = [
+
+                            {name:'Time',search:true,datatype:'text',property:'time'},
+                            {name:'Amount',search:true,datatype:'text',property:'amount'},
+                            {name:'Tank',search:true,datatype:'text',property:'tankId'},
+                        ];
+                        table("tableParent","tblMeasurement",metadata,[3,10,15,30,500,1000],btnSearchMC,true);
+
+                    </script>
+
+
+                </div>
+                <ul id="pagination" class="pagination"></ul>
+            </div>
+        </div>
+        <!-- view eke div eka wahena thana -->
+
+
+    </div>
+    <!-- tab pane eke div eka wahena thana -->
+    <div id="err">
+        <h3>Error Log</h3>
+    </div>
+
+</div>
+</body>
+</html>
+</head>
+<body>
+
+</body>
+</html>

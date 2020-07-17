@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <title>Purchase Order</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.v1.js"></script>
+    <script src="../script/ui.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            cmbSupplier.addEventListener("change",cmbSupplierCH);
+            cmbCategory.addEventListener("change",cmbCategoryCH);
+            cmbItem.addEventListener("change",cmbItemCH);
+            btnAddPorder.addEventListener("click",btnAddPorderMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            txtQuantity.addEventListener("keyup",txtQuantityKU);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+
+
+            privilages = httpRequest("../privilages?module=porder","GET");
+
+            purchaseorderstatuses = httpRequest("../purchaseorderstatuses/list","GET");
+            employees = httpRequest("../employees/list","GET");
+            suppliers = httpRequest("../suppliers/list","GET");
+            categories = httpRequest("../categories/list","GET");
+
+
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+        }
+
+        function loadView() {
+
+            //Search Area
+            txtSearchpono.value="";
+
+             fillCombo(cmbSearchsupplier,"Supplier",suppliers,"company","");
+             fillCombo(cmbSearchpostatus,"Status",purchaseorderstatuses,"status","");
+            cmbSearchsupplier.style.background="";
+            cmbSearchpostatus.style.background="";
+             txtSearchpono.style.background="";
+
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            var query ="&pono=&supplierid=&statusid=";
+            loadTable(1,cmbPageSize.value,query);
+
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            porders = new Array();
+            var data = httpRequest("/porders?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) porders = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblPorder',porders,fillForm);
+            clearSelection(tblPorder);
+            if(activerowno!="")selectRow(tblPorder,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldporder==null){
+                paginate=true;
+            }else{
+                if(getupdates()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some updates or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno="";
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+        function loadForm() {
+
+            porder = new Object();
+            oldporder = null;
+
+            porder.porderitemList = new Array();
+
+
+            //txtPonumber.value = "678";
+
+            fillCombo(cmbSupplier,"Select Supplier",suppliers,"company","");
+            fillCombo(cmbCategory,"Select Category",categories,"name","");
+          //  fillCombo(cmbItem,"Select Items",'',"name","");
+            fillCombo(cmbEmployee,"",employees,"callingname",session.getObject("user").employeeId.callingname);
+            fillCombo(cmbPorderstatus,"",purchaseorderstatuses,"status","New");
+            porder.employeeId=JSON.parse(cmbEmployee.value);
+            porder.porderstatusId = JSON.parse(cmbPorderstatus.value);
+
+
+            ponumber = httpRequest("../porders/pono","GET");
+            txtPonumber.value = ponumber.no;
+            porder.pono = txtPonumber.value;
+            txtPonumber.disabled = true;
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var dte = today.getDate();
+
+            if(dte<10) dte = "0"+dte;
+
+            dteDOCreated.value=today.getFullYear()+"-"+month+"-"+dte;
+            porder.date=dteDOCreated.value;
+            dteDOCreated.disabled=true;
+            cmbEmployee.disabled="disabled";
+            cmbPorderstatus.disabled="disabled";
+            setStyle(initial);
+            cmbPorderstatus.style.background=valid;
+            cmbEmployee.style.background=valid;
+
+            txtPonumber.style.background=valid;
+            dteDOCreated.style.background=valid;
+            dteDODeli.value ="";
+
+            refreshInnerForm();
+
+            disableButtons(false, true, true,true);
+            cmbItem.disabled =true;
+            cmbCategory.disabled = true;
+
+        }
+
+        function setStyle(style) {
+
+            txtPonumber.style.background = style;
+            cmbPorderstatus.style.background = style;
+            cmbEmployee.style.background = style;
+            dteDOCreated.style.background = style;
+            dteDODeli.style.background = style;
+            txtQuantity.style.background = style;
+            cmbSupplier.style.background= style;
+
+        }
+
+
+        function disableButtons(add, upd, del,app) {
+
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+            
+
+
+        }
+
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (porder.porderitemList.length == 0)
+                errors = errors + "\n" + "Items Not Selected";
+
+            if (porder.supplierId == null)
+                errors = errors + "\n" + "Supplier is not selected";
+
+            if (porder.pono == null)
+                errors = errors + "\n" + "Purchase order number is not added";
+
+            if (porder.porderstatusId == null)
+                errors = errors + "\n" + "Status is not selected";
+
+            if (porder.date == null)
+                errors = errors + "\n" + "Date is not selected";
+
+            if (porder.deldate == null)
+                errors = errors + "\n" + "Delivery date is not selected";
+
+
+            return errors;
+        }
+
+        function btnAddMC(){
+
+            var errors = getErrors();
+
+            if(errors==""){
+
+                 var porderlist="";
+                 for(x in porder.porderitemList)
+                     porderlist = porderlist + (porderlist==""?"":", ") +porder.porderitemList[x].itemId.name;
+
+                var option = window.confirm("Are you sure to add following porder ?\n" +
+                    "\npordernumber : " + porder.pono +
+                    "\nSupplier: : " + porder.supplierId.company +
+                    "\nPorder Items : " + porderlist +
+                    "\nPurchaseorderStatus : " + porder.porderstatusId.status +
+                    "\nDelivery Date : " + porder.deldate +
+                    "\nDate : " + porder.date );
+
+
+                if(option==true) {
+                    var response = httpRequest("/porders","POST",porder);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following errors\n"+errors); }
+        }
+
+        function btnClearMC() {
+
+            var clear;
+            if(oldporder==null){
+                clear=true;
+            }else{
+                if(getUpdates()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblPorder);
+            }
+
+
+        }
+
+        function fillForm(poi,rowno){
+            activerowno = rowno;
+            var filling;
+            if(oldporder==null){
+                filling=true;
+            }else{
+
+                if(getUpdates()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some updates or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblPorder);
+                selectRow(tblPorder,activerowno,active);
+
+                porder = JSON.parse(JSON.stringify(poi));
+                oldporder = JSON.parse(JSON.stringify(poi));
+
+                fillCombo(cmbSupplier, "",suppliers, "company", porder.supplierId.company);
+                cmbSupplier.disabled=true;
+
+                itemsbysupplier = httpRequest("../items/listbysupplier?supplierid="+JSON.parse(cmbSupplier.value).id,"GET");
+               fillCombo(cmbItem,"Select Items",itemsbysupplier,"name","");
+
+
+                txtPonumber.value = porder.pono;
+                txtPonumber.disabled="disabled";
+                dteDOCreated.value=porder.date;
+                dteDODeli.value=porder.deldate;
+                cmbSupplier.disabled="disabled";
+                cmbPorderstatus.disabled=false;
+
+               fillCombo(cmbPorderstatus,"Select porder Status",purchaseorderstatuses,"status",porder.porderstatusId.status);
+                fillCombo(cmbEmployee, "", employees, "callingname", porder.employeeId.callingname);
+
+
+                cmbEmployee.disabled="disabled";
+                refreshInnerForm();
+                disableButtons(true, false, false);
+                setStyle(valid);
+            }
+
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(porder!=null && oldporder!=null) {
+
+                if (isEqual(porder.porderitemList,oldporder.porderitemList,"itemId"))
+                    updates = updates + "\nItems are Changed";
+
+
+                if (porder.supplierId.company != oldporder.supplierId.company)
+                    updates = updates + "\nSupplier is Changed";
+
+                if (porder.pono != oldporder.pono)
+                    updates = updates + "\nPorder no is Changed";
+
+                if (porder.date != oldporder.date)
+                    updates = updates + "\nDate is Changed";
+
+                if (porder.deldate != oldporder.deldate)
+                    updates = updates + "\nDelivery date is Changed";
+
+                if (porder.employeeId.callingname != oldporder.employeeId.callingname)
+                    updates = updates + "\nEmployee is Changed";
+
+
+                if (porder.porderstatusId.status != oldporder.porderstatusId.status)
+                    updates = updates + "\nPorder status is Changed";
+
+                if (porder.date != oldporder.date)
+                    updates = updates + "\nDate is Changed";
+
+
+                return updates;
+
+
+            }
+
+
+        }
+
+        function btnUpdateMC() {
+
+            var err = getErrors();
+            if (err == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/porders","PUT",porder);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadView();   // loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+                }}
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+
+                        var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                            "PO no : " +porder.pono);
+
+                        if(option==true) {
+                            var response = httpRequest("/porders","DELETE",porder);
+                            if(response=="0"){
+                                toast("<strong>Success !</strong> Deleted Successfully","success");
+                                loadForm();
+                                loadSearchedTable();
+
+                            }
+                            else window.alert("Failed to Delete as \n\n"+response);
+                        }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable(){
+
+               var porderno = txtSearchpono.value.trim();
+               var supplier = cmbSearchsupplier.value;
+               var porderstatus = cmbSearchpostatus.value;
+
+               var supplierid="";
+               if(supplier!="Supplier")
+               { supplierid = JSON.parse(supplier).id;
+                   cmbSearchsupplier.style.background = active;}
+
+               var statusid="";
+               if(porderstatus!="Status")
+               {  statusid = JSON.parse(porderstatus).id;
+                   cmbSearchpostatus.style.background = active; }
+
+               if(porderno!=""){  txtSearchpono.style.background = active; }
+
+               var query ="&pono=&supplierid=&statusid=";
+
+               if(porderno!="" || supplierid!="" || statusid!="" )
+                   query = "&pono=" + porderno + "&supplierid=" + supplierid + "&statusid=" + statusid;
+
+               loadTable(activepage, cmbPageSize.value, query);
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+
+
+
+
+        function btnAddPorderMC() {
+            //console.log("btnAddPorderMC")
+
+            purchaseorderitem = new Object();
+            purchaseorderitem.itemId = JSON.parse(cmbItem.value);//i
+
+            if (txtQuantity.value!=null) {
+                txtQuantity.style.background = valid;
+                purchaseorderitem.quantity = txtQuantity.value.trim();
+                porder.porderitemList.push(purchaseorderitem);
+
+            } else {
+
+            }
+            refreshInnerForm();
+
+        }
+
+        function refreshInnerForm() {
+            txtQuantity.value = "";
+            txtQuantity.style.background = initial;
+
+            cmbSupplierCH();
+
+            fillInnerTable("tblPurchaseItem", porder.porderitemList, removeItem);
+
+        }
+
+         function removeItem(porderitemList,index) {
+             porder.porderitemList.splice(index-1,1);
+             refreshInnerForm();
+        }
+
+        function cmbSupplierCH() {
+
+            cmbCategory.disabled = false;
+
+            itemsbysupplier = httpRequest("../items/listbysupplier?supplierid="+JSON.parse(cmbSupplier.value).id,"GET");
+            fillCombo(cmbItem,"Select Items",itemsbysupplier,"name","");
+
+            // if(porder.porderitemList.itemId.rop>=porder.porderitemList.itemId.quantity) {
+            //     fillCombo(cmbItem, "Select a Item", itemsbysupplier, 'name',"");
+            // }
+            //
+
+
+
+           // cmbItem.style.background=initial;
+            cmbItem.style.background=valid;
+            cmbCategory.style.background=valid;
+
+        }
+
+        function txtQuantityKU() {
+
+            //window.alert(txtQuantity.value);
+
+            var val = /^([0-9]{1,8})$/;
+
+            if (txtQuantity.value.match(val)){
+
+                txtQuantity.style.background = valid;
+            }else{
+
+                txtQuantity.style.background = invalid;
+
+            }
+
+
+        }
+
+        function cmbCategoryCH(){
+
+            cmbItem.disabled = false;
+
+            var items = httpRequest("../items/listbycategory?categoryId="+ JSON.parse(cmbCategory.value).id, "GET");
+            fillCombo(cmbItem,"Select Items",items,"name","");
+
+
+        }
+
+        function cmbItemCH(){
+            txtQuantity.value = JSON.parse(cmbItem.value).roq;
+            txtQuantity.style.background = valid;
+        }
+
+    </script>
+<style>
+    body{
+        height: 1000px;
+    }
+</style>
+
+
+
+</head>
+
+<body style="height:1000px;">
+<div class="container-fluid" style="background-color: #0c5460">
+    <h3 style="color: #FFFFE3">PURCHASE ORDER MANAGEMENT</h3>
+    <ul class="nav nav-tabs">
+        <li class="active"><a data-toggle="tab" href="#AddPorder">Add Porder</a></li>
+        <li><a data-toggle="tab" href="#ViewPorder">View Porder</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="AddPorder" class="tab-pane fade in active">
+            <div class="row" id="ui">
+                <div class="col-md-12">
+                    <div class="panel panel-primary" style="margin-top: 10px;">
+                        <div class="panel-body"   style="background-image: url('../image/station.jpg');background-repeat: no-repeat;background-size: 1100px 800px">
+                            <div class="row">
+
+                                <div class="col-md-8 col-md-offset-2" id="form">
+                                    <form class="form-horizontal" onsubmit="return false" id="porderform" >
+
+                        <script>
+
+                            // Defining UI-Componnets and Layouts
+                            // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                            textField('porderform','txtPonumber','PONumber<span style="color:red;font-size:20px">*<span>','Po number(TEFPxxxx)','',4,"",'porder','pono','oldporder');
+                            comboBox('porderform','cmbSupplier','Select Supplier <span style="color:red;font-size:20px">*<span>',4,'porder','supplierId','oldporder');
+                        </script>
+                        <div id="innerform" style="background-color: rgba(0,0,0,0.1); padding: 20px 10px;margin-bottom:15px">
+                            <script>
+                                comboBox('innerform','cmbCategory','Category',4,'','','');
+                                comboBox('innerform','cmbItem','Items <span style="color:red;font-size:20px">*<span>',4,'','','');
+                                textField('innerform','txtQuantity','Quantity <span style="color:red;font-size:20px">*<span>','Quantity','',4,"",'','','');
+                            </script>
+                            <div class="text-right" style="margin-bottom: 10px">
+                                <input  class="btn btn-primary btn-sm" type="button" id="btnAddPorder" value="Add" style=""/>
+                            </div>
+                            <div class="row">
+                                <div class="table-responsive col-md-12 " id="tableInnerParent">
+                                    <script>
+                                        var metadatainnertable = [
+                                            {name:'Item',search:false,datatype:'text',property:'itemId.name'},
+                                            {name:'Quantity',search:false,datatype:'text',property:'quantity'}
+                                        ];
+                                        tableForInnerForm("tableInnerParent","tblPurchaseItem",metadatainnertable,true);
+                                    </script>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <script>
+                            dateField('porderform','dteDODeli','Delivery Date <span style="color:red;font-size:20px">*<span>','Select Delivery Date',4,"",'porder','deldate','oldporder');
+                            comboBox('porderform','cmbPorderstatus','Purhase order status <span style="color:red;font-size:20px">*<span>',4,'porder','porderstatusId','oldporder');
+                            comboBox('porderform','cmbEmployee','Created Employee <span style="color:red;font-size:20px">*<span>',4,'porder','employeeId','oldporder');
+                            dateField('porderform','dteDOCreated','Created Date <span style="color:red;font-size:20px">*<span>','Select Created Date',4,"",'porder','date','oldporder');
+
+
+                        </script>
+
+
+                        <div class="text-right">
+                            <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                            <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                            <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                            <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                        </div>
+
+
+
+                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="ViewPorder" class="tab-pane fade ">
+
+                <div class="col-md-12" id="porderview">
+
+                    <form class="form-inline" onsubmit="return false">
+
+                        <div class="form-group form-group-sm">
+                            <input placeholder="Search By PO number" class="form-control" type="text" id="txtSearchpono"/>
+                        </div>
+                        <div class="form-group form-group-sm">
+                            <select class="form-control" id="cmbSearchsupplier"></select>
+                        </div>
+                        <div class="form-group form-group-sm">
+                            <select class="form-control" id="cmbSearchpostatus"></select>
+                        </div>
+                        <input type="button" class="btn btn-warning btn-sm" value="Clear Search" id="btnSearchClear"/>
+                        <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                    </form>
+                    <hr/>
+
+
+                    <div class="table-responsive" id="tableParent">
+
+                        <script>
+
+                            var metadata = [
+                                {name:'supplier',search:true,datatype:'text',property:'supplierId.company'},
+                                {name:'POnumber',search:true,datatype:'text',property:'pono'},
+                                {name:'Status',search:true,datatype:'text',property:'porderstatusId.status'}
+                            ];
+
+                            table("tableParent","tblPorder",metadata,[3,10,15,30,500,1000],btnSearchMC);
+
+                        </script>
+                    </div>
+
+                    </div>
+                    <ul id="pagination" class="pagination"></ul>
+                </div>
+        </div>
+        <!-- view eke div eka wahena thana -->
+
+
+    </div>
+    <!-- tab pane eke div eka wahena thana -->
+    <div id="err" style="display: none">
+        <h3>Error Log</h3>
+    </div>
+</div>
+
+</body>
+</html>

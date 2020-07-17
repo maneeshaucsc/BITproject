@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Record Details</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.v1.js"></script>
+    <script src="../script/ui.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+            privilages = httpRequest("../privilages?module=record","GET");
+
+            regexes = httpRequest("../regexes/record","GET");
+
+            //txtTotal.setAttribute("data-pattern",regexes.nettotal.regex);
+            txtLit.setAttribute("data-pattern",regexes.liters.regex);
+            txtPrice.setAttribute("data-pattern",regexes.price.regex);
+
+
+            employees = httpRequest("../employees/list","GET");
+            readings = httpRequest("../readings/list","GET");
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+
+        }
+
+        function loadView() {
+
+            //Search Area
+            txtSearchTime.value="";
+            txtSearchTime.style.background = "";
+
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            var query = "&time=";
+            loadTable(1,cmbPageSize.value,query);
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            records = new Array();
+            var data = httpRequest("/records?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) records = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblRecord',records,fillForm);
+            clearSelection(tblRecord);
+            if(activerowno!="")selectRow(tblRecord,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldrecord==null){
+                paginate=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno=""
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+        function loadForm() {
+            record = new Object();
+            oldrecord = null;
+            fillCombo(cmbReading,"",readings,"Time","");
+
+            fillCombo(cmbEmployee,"",employees,"callingname",session.getObject("user").employeeId.callingname);
+
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var datee = today.getDate();
+            if(datee<10) datee = "0"+datee;
+
+            dteDOEnter.value=today.getFullYear()+"-"+month+"-"+datee;
+            //alert( dteDOEnter.value);
+
+            record.date=dteDOEnter.value;
+            record.readingId=JSON.parse(cmbReading.value);
+
+            record.employeeId = JSON.parse(cmbEmployee.value);
+
+            cmbEmployee.disabled = "disabled";
+
+
+            txtLit.value = "";
+            txtPrice.value="";
+
+            setStyle(initial);
+            cmbReading.style.background=valid;
+            cmbEmployee.style.background=valid;
+            dteDOEnter.style.background=valid;
+            dteDOEnter.disabled="disabled";
+            disableButtons(false, true, true);
+        }
+
+        function setStyle(style) {
+
+            txtLit.style.background = style;
+            txtPrice.style.background = style;
+            dteDOEnter.style.background = style;
+            cmbReading.style.background = style;
+            cmbEmployee.style.background = style;
+
+        }
+
+        function disableButtons(add, upd, del) {
+
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+        }
+
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (record.pumpedtime == null)
+                errors = errors + "\n" + regexes.payno.message;
+
+            if (record.liters == null)
+                errors = errors + "\n" + regexes.nettotal.message;
+
+            if (record.price == null)
+                errors = errors + "\n" + regexes.paidtotal.message;
+
+            if (record.totalbalnce == null)
+                errors = errors + "\n" + regexes.totalbalance.message;
+
+            if (record.readingId == null)
+                errors = errors + "\n" + "Reading is Not Selected";
+
+            if (record.employeeId == null)
+                errors = errors + "\n" + "Employee is Not Selected";
+
+
+            return errors;
+
+        }
+
+        function btnAddMC() {
+
+            var errors = getErrors();
+
+            if(errors=="") {
+                var option = window.confirm("Are you sure to add following Employee ?\n" +
+                    "\nPayment no : " + payment.payno +
+                    "\nTotal payment : " + payment.nettotal +
+                    "\nPaid total : " + payment.paidtotal +
+                    "\nTotal balance : " + payment.totalbalance +
+                    "\nPaid Date: " + payment.date +
+                    "\nEntered Employee : " + payment.employeeId.callingname +
+                    "\nPayment status : " + payment.paymetstatusId.status);
+
+                if(option==true) {
+                    var response = httpRequest("/payments","POST",payment);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following Errors\n"+errors); }
+
+        }
+
+        function btnClearMC() {
+            //Get Cofirmation from the User window.confirm();
+
+            var clear;
+            if(oldrecord==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblCustomer);
+            }
+
+
+        }
+
+        function fillForm(rec,rowno){
+            activerowno = rowno;
+            var filling;
+            if(oldrecord==null){
+                filling=true;
+            }else{
+
+                if(getErrors()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblRecord);
+                selectRow(tblRecord,activerowno,active);
+
+                record = JSON.parse(JSON.stringify(rec));
+                oldrecord = JSON.parse(JSON.stringify(rec));
+
+                txtLit.value = record.liters;
+                txtPrice.value = record.price;
+                dteDOEnter.value = record.entereddate;
+
+
+                fillCombo(cmbEmployee, "Select Employee", employees, "callingname", record.employeeId.callingname);
+                fillCombo(cmbReading, "", readings, "Reading", record.readingId.time);
+
+                disableButtons(true, false, false);
+                setStyle(valid);
+            }
+
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(record!=null && oldrecord!=null) {
+
+                if (record.pumpedtime != oldrecord.pumpedtime)
+                    updates = updates + "\nPayment no is Changed";
+
+                if (record.liters != oldrecord.liters)
+                    updates = updates + "\nTotal amount is Changed";
+
+                if (record.price != oldrecord.price)
+                    updates = updates + "\nPaid amount is Changed";
+
+                if (record.readingId != oldrecord.readingId)
+                    updates = updates + "\nPayment status is Changed";
+
+                if (record.employeeId != oldrecord.employeeId)
+                    updates = updates + "\nEmployee is Changed";
+
+
+
+
+            }
+
+            return updates;
+        }
+
+        function btnUpdateMC() {
+            var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/records","PUT",record);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+
+
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+            var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Recorded Time : " +record.time);
+
+            if(option==true) {
+                var response = httpRequest("/records","DELETE",record);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    loadForm();
+                    loadSearchedTable();
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable() {
+
+            var time = txtSearchTime.value;
+
+            if(time!=""){  txtSearchTime.style.background = active; }
+
+
+            var query ="&time=";
+
+            if(time!="")
+                query = "&time";
+
+            window.alert(query);
+            loadTable(activepage, cmbPageSize.value, query);
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+    </script>
+
+
+
+</head>
+
+<body style="height:1000px;">
+<div class="container-fluid" style="background-color: #0c5460">
+    <h3 style="color: #FFFFE3">RECORDS MANAGEMENT</h3>
+    <ul class="nav nav-tabs">
+        <li class="active"><a data-toggle="tab" href="#AddRecord">Add Record</a></li>
+        <li><a data-toggle="tab" href="#ViewRecord">View Record</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="AddRecord" class="tab-pane fade in active">
+            <div class="row" id="ui">
+                <div class="col-md-12">
+                    <div class="panel panel-primary" style="margin-top: 10px;">
+
+                        <div class="panel-body"  style="background-image: url('../image/station.jpg');background-repeat: no-repeat;background-size: 1100px 400px">
+                            <div class="row">
+
+                                <div class="col-md-8 col-md-offset-2" id="form">
+                                    <form class="form-horizontal" onsubmit="return false" id="recordform" >
+
+                                        <script>
+
+                                            // Defining UI-Componnets and Layouts
+                                            // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                                            timeField('recordform','timeDOEnter','Recording Time<span style="color:red;font-size:20px">*<span>','Enter Time',4,"",'record','pumpedtime','oldrecord');
+                                            textField('recordform','txtLit','Litres<span style="color:red;font-size:20px">*<span>','Enter liters here','',4,"",'record','liters','oldrecord');
+                                            textField('recordform','txtPrice','Price<span style="color:red;font-size:20px">*<span>','Enter Price here','',4,"",'record','price','oldrecord');
+                                            comboBox('recordform','cmbReading','Reading<span style="color:red;font-size:20px">*<span>',4,"",'record','readingId','oldrecord');
+                                            dateField('recordform','dteDOEnter','Entered Date<span style="color:red;font-size:20px">*<span>','Select Enter Date',4,"",'record','entereddate','oldrecord');
+
+
+                                            // Custom UI-Componnets and Layouting
+
+                                        </script>
+
+
+
+
+                                        <div class="text-right">
+                                            <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                                            <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                                            <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                                            <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                                        </div>
+
+
+                                    </form>
+
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="ViewRecord" class="tab-pane fade ">
+
+            <div class="col-md-12" id="recordview">
+                <form class="form-inline" onsubmit="return false">
+                    <div class="form-group form-group-sm">
+                        <input placeholder="Search By Time" class="form-control" type="text" id="txtSearchTime"/>
+                    </div>
+                   <!-- <div class="form-group form-group-sm">
+                        <input placeholder="Search By Time" class="form-control" type="text" id="txtSearchTime"/>
+                    </div>-->
+                    <input type="button" class="btn btn-warning btn-sm" value="Clear" id="btnSearchClear"/>
+                    <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                </form>
+                <hr/>
+                <div class="table-responsive" id="tableParent">
+
+                    <script>
+
+
+                        var metadata = [
+
+                            {name:'Time.',search:true,datatype:'text',property:'time'},
+                            {name:'Litres',search:true,datatype:'text',property:'liters'},
+                            {name:'Price',search:true,datatype:'text',property:'price'},
+                            {name:'Reading',search:true,datatype:'text',property:'readingId.pumpedtime'}
+                        ];
+                        table("tableParent","tblRecord",metadata,[3,10,15,30,500,1000],btnSearchMC,true);
+
+                    </script>
+
+
+                </div>
+                <ul id="pagination" class="pagination"></ul>
+            </div>
+        </div>
+        <!-- view eke div eka wahena thana -->
+
+
+    </div>
+    <!-- tab pane eke div eka wahena thana -->
+    <div id="err">
+        <h3>Error Log</h3>
+    </div>
+
+</div>
+</body>
+</html>

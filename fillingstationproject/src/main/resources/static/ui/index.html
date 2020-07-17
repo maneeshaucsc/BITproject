@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Matrix Admin</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css" />
+<link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap-responsive.min.css" />
+<link rel="stylesheet" href="../plugin/bootstrap/css/fullcalendar.css" />
+<link rel="stylesheet" href="../plugin/bootstrap/css/matrix-style.css" />
+
+<link href="../plugin/bootstrap/fonts/font-awesome.css" rel="stylesheet" />
+<link rel="stylesheet" href="../plugin/bootstrap/css/jquery.gritter.css" />
+<link href='http://fonts.googleapis.com/css?family=Open+Sans:400,700,800' rel='stylesheet' type='text/css'>
+
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+   <script type="text/javascript">
+      google.charts.load('current', {'packages':['gauge']});
+      google.charts.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+
+        var data = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['Petrol 92 ', 80],
+          ['Petrol 95', 55],
+          ['Super Diesal', 68],
+          ['Nomal Diesal',50]
+        ]);
+
+        var options = {
+          width: 650, height: 300,
+          redFrom: 90, redTo: 100,
+          yellowFrom:75, yellowTo: 90,
+          minorTicks: 5
+        };
+
+        var chart = new google.visualization.Gauge(document.getElementById('chart_div'));
+
+        chart.draw(data, options);
+
+        setInterval(function() {
+          data.setValue(0, 1, 40 + Math.round(60 * Math.random()));
+          chart.draw(data, options);
+        }, 13000);
+        setInterval(function() {
+          data.setValue(1, 1, 40 + Math.round(60 * Math.random()));
+          chart.draw(data, options);
+        }, 5000);
+        setInterval(function() {
+          data.setValue(2, 1, 60 + Math.round(20 * Math.random()));
+          chart.draw(data, options);
+        }, 26000);
+        setInterval(function() {
+          data.setValue(2, 1, 60 + Math.round(20 * Math.random()));
+          chart.draw(data, options);
+        }, 26000);
+        setInterval(function() {
+          data.setValue(2, 1, 60 + Math.round(20 * Math.random()));
+          chart.draw(data, options);
+        }, 26000);
+      }
+    </script>
+
+</head>
+<body>
+
+<!--Header-part-->
+
+<!--close-Header-part--> 
+
+
+<!--top-Header-menu-->
+
+<!--sidebar-menu-->
+
+<!--main-container-part-->
+
+<!--Action boxes-->
+  <div class="container-fluid">
+    <div class="quick-actions_homepage">
+      <ul class="quick-actions">
+        <li class="bg_lb"> <a href="index.html"> <i class="icon-dashboard"></i>My Dashboard </a> </li>
+        <li class="bg_lg span3"> <a href="charts.html"> <i class="icon-signal"></i> Fuel Consumption</a> </li>
+        <li class="bg_ly"> <a href="widgets.html"> <i class="icon-inbox"></i> Customer Orders </a> </li>
+        <li class="bg_lo"> <a href="tables.html"> <i class="icon-th"></i> Reports</a> </li>
+        <li class="bg_ls"> <a href="grid.html"> <i class="icon-fullscreen"></i>Suppliers</a> </li>
+        <li class="bg_lo span3"> <a href="form-common.html"> <i class="icon-th-list"></i>Employees</a> </li>
+        <li class="bg_ls"> <a href="buttons.html"> <i class="icon-tint"></i>Tanks</a> </li>
+        <li class="bg_lb"> <a href="interface.html"> <i class="icon-pencil"></i>Meters</a> </li>
+        <li class="bg_lg"> <a href="calendar.html"> <i class="icon-calendar"></i> Calendar</a> </li>
+        
+
+      </ul>
+    </div>
+<!--End-Action boxes-->    
+
+<!--Chart-box-->    
+    <div class="row-fluid">
+      <div class="widget-box">
+        <div class="widget-title bg_lg"><span class="icon"><i class="icon-signal"></i></span>
+          <h5>Site Analytics</h5>
+        </div>
+        <div class="widget-content" >
+          <div class="row-fluid">
+            <div class="span7">
+              <div id="chart_div" style="width: 500px; height: 200px;"></div>
+              
+            </div>
+            <div class="span5">
+              <ul class="site-stats">
+                <li class="bg_lh"><i class="icon-user"></i> <strong>2540</strong> <small>Total Users</small></li>
+                <li class="bg_lh"><i class="icon-plus"></i> <strong>120</strong> <small>Total Orders</small></li>
+                <li class="bg_lh"><i class="icon-shopping-cart"></i> <strong>656</strong> <small>Total Sales</small></li>
+                <li class="bg_lh"><i class="icon-tag"></i> <strong>9540</strong> <small>Pending Orders</small></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+<!--End-Chart-box--> 
+  </div>
+    
+</body>
+</html>

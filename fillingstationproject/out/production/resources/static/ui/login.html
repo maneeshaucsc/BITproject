@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Dissanayake Filling station</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width , initial-scale=1">
+	<link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+	<script src="../plugin/jquery/jquery.min.js"></script>
+	<script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+	<link rel="stylesheet" href="../style/common.css"/>
+
+	<style type="text/css">
+		/*div{border: dotted;}*/
+		/*#bground {background: url('gas.jpg')no-repeat;
+                background-size: 700px 700px;
+                width: 100%;
+                height: 100vh;
+
+                  }*/
+
+		.form-container{
+			background: url('../image/gas.jpg');
+
+			background-repeat: repeat;
+			background-position: center;
+			border: 0px solid white;
+			padding: 30px 50px;
+			margin-top: 100px;
+			-webkit-box-shadow : -2px 5px 27px 11px rgba(0,0,0,0.25);
+			box-shadow: -5px 5px 27px 11px rgba(0,0,0,0.75);
+		}
+
+		span.a{
+			display:inline-block;
+			padding: 1px;
+			border-radius: 5px;
+			background-color:#669999;
+		}
+
+
+	</style>
+
+
+</head>
+<body>
+
+<div class="container-fluid" id="bground">
+	<div class="row">
+
+		<div class="col-md-4 col-md-offset-4 col-sm-4 col-xs-12">
+			<div class="form-container">
+					<span class="a">
+  						<div style="width:320px; height:150px;">
+    							<img src="../image/logoc.png" alt="logo" style="width:320px;height:150px">
+    					</div>
+    				</span>
+
+				<h1 style="color:red; text-align:center"><b>LOGIN</b></h1>
+				<div class="input-group" style="color: black">
+					<span class="input-group-addon"><span class="glyphicon glyphicon-user"></span></span>
+					<input type="text" class="form-control" id="txtUsername" placeholder="Enter Username" name="username" value="">
+				</div>
+				<br/>
+				<div class="input-group" style="color: black"><span class="input-group-addon"><span class="glyphicon glyphicon-lock"></span></span>
+					<input type="password" class="form-control" id="txtPassword" placeholder="Enter Password" name="password">
+				</div>
+				<div class="checkbox">
+					<label><input type="checkbox"/>Remember me</label>
+				</div>
+				<button class="btn btn-success btn-block" id="btnLogin">Submit</button>
+			</div>
+
+
+		</div>
+
+	</div>
+</div>
+
+<script>
+
+	window.addEventListener("load", initialize);
+
+	function initialize() {
+		btnLogin.addEventListener("click", btnLoginMC);
+	}
+
+	function btnLoginMC() {
+
+		var username = txtUsername.value.trim();
+		var password = txtPassword.value.trim();
+
+		if (username != "" && password != ""){
+
+			ajax = new XMLHttpRequest();
+			ajax.open("POST", "/session", false);
+			ajax.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+			ajax.send("username="+username+"&password="+password);
+			err.innerHTML=err.innerHTML+ajax.responseText;
+			if(ajax.status==200 && ajax.responseText!="") {
+				sessionlog = JSON.parse(ajax.responseText);
+				cookie.setValue("username",  username, 1);
+				cookie.setValue("password", password, 1);
+				cookie.setValue("sessionid", sessionlog.id, 1);
+				session.setObject("user", sessionlog.userId);
+				err.innerHTML = err.innerHTML + ajax.responseText;
+
+				window.open("mainwindow", "_self");
+			}
+			else
+				window.alert("Incorect User Details");
+		}
+		else
+			window.alert("Enter both Username or Password");
+	}
+
+</script>
+<div id="err"></div>
+</body>
+</html>

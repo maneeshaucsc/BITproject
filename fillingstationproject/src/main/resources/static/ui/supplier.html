@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Supplier</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.v1.js"></script>
+    <script src="../script/ui.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+            privilages = httpRequest("../privilages?module=supplier","GET");
+
+
+            regexes = httpRequest("../regexes/supplier","GET");
+            txtCompany.setAttribute("data-pattern",regexes.company.regex);
+            txtRegno.setAttribute("data-pattern",regexes.regno.regex);
+            txtAddress.setAttribute("data-pattern",regexes.address.regex);
+            txtPhone.setAttribute("data-pattern",regexes.phone.regex);
+            txtEmail.setAttribute("data-pattern",regexes.email.regex);
+            txtContactname.setAttribute("data-pattern",regexes.contactname.regex);
+            txtContactno.setAttribute("data-pattern",regexes.contactno.regex);
+
+
+            employees = httpRequest("../employees/list","GET");
+            supplierstatuses = httpRequest("../supplierstatuses/list","GET");
+            itemtypes = httpRequest("../itemtypes/list","GET");
+
+
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+        }
+
+        function loadView() {
+
+            //Search Area
+            txtSearchsuppliername.value="";
+            fillCombo(cmbSearchItemtype,"Item",itemtypes,"type","");
+            fillCombo(cmbSearchsupplierstatus,"Status",supplierstatuses,"status","");
+            cmbSearchsupplierstatus.style.background = "";
+            cmbSearchItemtype.style.background = "";
+            txtSearchsuppliername.style.background = "";
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            var query ="&company=&itemtypeid=&statusid=";
+            loadTable(1,cmbPageSize.value,query);
+
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            suppliers = new Array();
+            var data = httpRequest("/suppliers?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) suppliers = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblSupplier',suppliers,fillForm);
+            clearSelection(tblSupplier);
+            if(activerowno!="")selectRow(tblSupplier,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldsupplier==null){
+                paginate=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno=""
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+        function loadForm() {
+
+            supplier = new Object();
+            oldsupplier = null;
+
+            supplier.supplyList = new Array();
+            itemsright = new Array();
+            itemsleft = itemtypes;
+
+            fillCombo(cmbEmployee,"Select Employee",employees,"callingname",session.getObject("user").employeeId.callingname);
+            fillCombo(cmbSupplierstatus,"",supplierstatuses,"status","New");
+            supplier.supplierstatusId =JSON.parse(cmbSupplierstatus.value);
+            cmbSupplierstatus.disabled=true;
+
+           setListTransferData('supplieritem',itemtypes);
+
+            regnumber = httpRequest("../suppliers/regno","GET");
+            txtRegno.value = regnumber.no;
+            supplier.regno = txtRegno.value;
+            txtRegno.disabled = true;
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var date = today.getDate();
+
+            if(date<10) date = "0"+date;
+
+            dteDOCreated.value=today.getFullYear()+"-"+month+"-"+date;
+            supplier.entereddate=dteDOCreated.value;
+
+            supplier.employeeId=JSON.parse(cmbEmployee.value);
+
+
+            txtCompany.value = "";
+            txtContactname.value = "";
+            txtContactno.value = "";
+            txtEmail.value = "";
+            txtPhone.value = "";
+            txtAddress.value = "";
+
+            setStyle(initial);
+            cmbSupplierstatus.style.background=valid;
+            dteDOCreated.style.background=valid;
+            cmbEmployee.style.background=valid;
+            txtRegno.style.background=valid;
+            cmbEmployee.disabled="disabled";
+            dteDOCreated.disabled="disabled";
+
+
+            disableButtons(false, true, true);
+
+        }
+
+        function setStyle(style) {
+
+            txtCompany.style.background = style;
+            txtRegno.style.background = style;
+            txtPhone.style.background = style;
+            txtAddress.style.background = style;
+            txtContactname.style.background = style;
+            txtContactno.style.background = style;
+            dteDOCreated.style.background = style;
+            txtEmail.style.background = style;
+            cmbEmployee.style.background = style;
+            cmbSupplierstatus.style.background = style;
+
+        }
+
+        function disableButtons(add, upd, del) {
+
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+
+        }
+
+
+
+
+        // Binding and Validation Functions for Non-Regex-Based
+        // When Regex-Based default validation is used, programmers do not need to define these functions
+        // Default Validation and Binding is coded in "ui.bitproject.earth.lk.js"
+
+
+
+
+        //Form Operation Functions
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (supplier.employeeId == null)
+                errors = errors + "\n" + "Employee is Not Selected";
+
+            if (supplier.supplierstatusId == null)
+                errors = errors + "\n" + "Supplierstatus is Not Selected";
+
+            if (supplier.company == null)
+                errors = errors + "\n" + regexes.company.message;
+            
+            if (supplier.regno == null)
+                errors = errors + "\n" + regexes.regno.message;
+
+            if (supplier.contactname == null)
+                errors = errors + "\n" + regexes.contactname.message;
+
+            if (supplier.contactno == null)
+                errors = errors + "\n" + regexes.contactno.message;
+
+            if (supplier.phone == null)
+                errors = errors + "\n" + regexes.phone.message;
+
+            if (supplier.email == null)
+                errors = errors + "\n" + regexes.email.message;
+
+
+            if (supplier.address == null)
+                errors = errors + "\n" + regexes.address.message;
+
+
+            if (supplier.supplyList.length == 0)
+                errors = errors + "\n" + "Itemtypes are Not Selected";
+
+            return errors;
+
+        }
+
+        function btnAddMC(){
+
+            var errors = getErrors();
+
+            if(errors==""){
+
+                var supplylist="";
+                for(x in supplier.supplyList)
+                    supplylist = supplylist + (supplylist==""?"":", ") +supplier.supplyList[x].itemtypeId.type
+                var option = window.confirm("Are you sure to add following User ?\n" +
+                    "\nSupplierstatus : " + supplier.supplierstatusId.status +
+                    "\nCompany : " + supplier.company +
+                    "\nRegister No: : " + supplier.regno +
+                    "\nContactname : " + supplier.contactname +
+                    "\nContactno : " + supplier.contactno +
+                    "\nPhone : " + supplier.phone +
+                    "\nEmail : " + supplier.email +
+                    "\nAddress : " + supplier.address);
+                if(option==true) {
+                    var response = httpRequest("/suppliers","POST",supplier);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following Errors\n"+errors); }
+
+        }
+
+        function btnClearMC() {
+
+            var clear;
+            if(oldsupplier==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblSupplier);
+            }
+
+
+
+
+        }
+
+        function fillForm(sup,rowno){
+            activerowno = rowno;
+            var filling;
+            if(oldsupplier==null){
+                filling=true;
+            }else{
+
+                if(getErrors()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+                setListTransferData('supplieritem',itemtypes);
+
+                clearSelection(tblSupplier);
+                selectRow(tblSupplier,activerowno,active);
+
+                supplier = JSON.parse(JSON.stringify(sup));
+                oldsupplier = JSON.parse(JSON.stringify(sup));
+
+                setListTransferValues('supplieritem',supplier.supplyList);
+
+                txtCompany.value = supplier.company;
+                txtRegno.value = supplier.regno;
+                txtContactname.value = supplier.contactname;
+                txtContactno.value = supplier.contactno;
+                txtEmail.value = supplier.email;
+                dteDOCreated.value = supplier.entereddate;
+                txtPhone.value = supplier.phone;
+                txtAddress.value=supplier.address;
+                dteDOCreated.disabled="disabled";
+
+                fillCombo(cmbEmployee, "", employees, "callingname", supplier.employeeId.callingname);
+                fillCombo(cmbSupplierstatus, "", supplierstatuses, "status", supplier.supplierstatusId.status);
+
+                cmbEmployee.disabled="disabled";
+
+                disableButtons(true, false, false);
+                setStyle(valid);
+            }
+
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(supplier!=null && oldsupplier!=null) {
+
+                if (isEqual(supplier.supplyList,oldsupplier.supplyList,"itemtypeId"))
+                    updates = updates + "\nItems are Changed";
+
+                if (supplier.company != oldsupplier.company)
+                    updates = updates + "\nCompany is Changed";
+
+                if (supplier.regno != oldsupplier.regno)
+                    updates = updates + "\nReg no is Changed";
+
+                if (supplier.contactname != oldsupplier.contactname)
+                    updates = updates + "\nContactname is Changed";
+
+                if (supplier.contactno != oldsupplier.contactno)
+                    updates = updates + "\nContactno is Changed";
+
+                if (supplier.address != oldsupplier.address)
+                    updates = updates + "\nAddress is Changed";
+
+                if (supplier.phone != oldsupplier.phone)
+                    updates = updates + "\nPhone is Changed";
+
+                if (supplier.email != oldsupplier.email)
+                    updates = updates + "\nEmail is Changed";
+
+                if (supplier.supplierstatusId.status != oldsupplier.supplierstatusId.status)
+                    updates = updates + "\nSupplierstatus is Changed";
+
+
+            }
+
+            return updates;
+
+        }
+
+        function btnUpdateMC() {
+            var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing is Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/suppliers","PUT",supplier);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+
+
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+
+            var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Reg no : " +supplier.regno+ "\nStatus : " +supplier.supplierstatusId.status);
+
+            if(option==true) {
+                var response = httpRequest("/suppliers","DELETE",supplier);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    loadForm();
+                    loadSearchedTable();
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable(){
+
+            var suppliername = txtSearchsuppliername.value.trim();
+            var itemtype = cmbSearchItemtype.value;
+            var supplierstatus = cmbSearchsupplierstatus.value;
+
+            var itemtypeid="";
+            if(itemtype!="Item")
+            { itemtypeid = JSON.parse(itemtype).id;
+                cmbSearchItemtype.style.background = active;}
+
+            var supplierstatusid="";
+            if(supplierstatus!="Status")
+            {  supplierstatusid = JSON.parse(supplierstatus).id;
+                cmbSearchsupplierstatus.style.background = active; }
+
+            if(suppliername!=""){  txtSearchsuppliername.style.background = active; }
+
+            var query ="&company=&itemtypeid=&statusid=";
+
+            if(suppliername!="" || itemtypeid!="" || supplierstatusid!="" )
+                query = "&company=" + suppliername + "&itemtypeid=" + itemtypeid + "&statusid=" + supplierstatusid;
+
+
+            loadTable(activepage, cmbPageSize.value, query);
+
+
+
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+
+    </script>
+
+
+
+
+</head>
+<body style="height:1000px;">
+<div class="container-fluid" style="background-color: #0c5460">
+    <h3 style="color: #FFFFE3">SUPPLIER MANAGEMENT</h3>
+    <ul class="nav nav-tabs">
+        <li class="active"><a data-toggle="tab" href="#AddSupplier">Add Supplier</a></li>
+        <li><a data-toggle="tab" href="#ViewSupplier">View Supplier</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="AddSupplier" class="tab-pane fade in active">
+            <div class="row" id="ui">
+                <div class="col-md-12">
+                    <div class="panel panel-primary" style="margin-top: 10px;">
+        <div class="panel-body"   style="background-image: url('../image/station.jpg');background-repeat: no-repeat;background-size: 1100px 800px">
+            <div class="row">
+
+                <div class="col-md-8 col-md-offset-2" id="form">
+                    <form class="form-horizontal" onsubmit="return false" id="supplierform" >
+
+                        <script>
+
+                            // Defining UI-Componnets and Layouts
+                            // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                            textField('supplierform','txtCompany','Company<span style="color:red;font-size:20px">*<span>','Enter Company Here','',4,"",'supplier','company','oldsupplier');
+                            textField('supplierform','txtRegno','Reg.Number<span style="color:red;font-size:20px">*<span>','Enter Registration Number Here','',4,"",'supplier','regno','oldsupplier');
+                            textField('supplierform','txtPhone','Phone<span style="color:red;font-size:20px">*<span>','Enter PhoneNumber Here','',4,"",'supplier','phone','oldsupplier');
+                            textField('supplierform','txtAddress','Address<span style="color:red;font-size:20px">*<span>','Enter Address Here','',4,"",'supplier','address','oldsupplier');
+                            listTransfer('supplierform','supplieritem','Item types<span style="color:red;font-size:20px">*<span>',4,'supplier','oldsupplier','supplyList','itemtypeId',"type");
+                            textField('supplierform','txtContactname','Contact Person<span style="color:red;font-size:20px">*<span>','Enter Contact Person Here','',4,"",'supplier','contactname','oldsupplier');
+                            textField('supplierform','txtContactno','Contact Number<span style="color:red;font-size:20px">*<span>','Enter Contact Number Here','',4,"",'supplier','contactno','oldsupplier');
+                            textField('supplierform','txtEmail','Email<span style="color:red;font-size:20px">*<span>','Enter Email Here','',4,"",'supplier','email','oldsupplier');
+                            dateField('supplierform','dteDOCreated','Created Date<span style="color:red;font-size:20px">*<span>','Select Created Date',4,"",'supplier','entereddate','oldsupplier');
+                            comboBox('supplierform','cmbSupplierstatus','Status<span style="color:red;font-size:20px">*<span>',4,'supplier','supplierstatusId','oldsupplier'/*,"New",AddNewStatusMC*/);
+                            comboBox('supplierform','cmbEmployee','Employee<span style="color:red;font-size:20px">*<span>',4,'supplier','employeeId','oldsupplier');
+
+
+
+
+                            // Custom UI-Componnets and Layouting
+
+
+
+
+                            //List-Transfer Functions
+
+
+
+                        </script>
+
+
+                        <div class="text-right">
+                            <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                            <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                            <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                            <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                        </div>
+
+
+
+                    </form>
+                </div>
+            </div>
+        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="ViewSupplier" class="tab-pane fade ">
+
+                <div class="col-md-12" id="supplierview">
+
+                    <form class="form-inline" onsubmit="return false">
+                        <div class="form-group form-group-sm">
+                            <input placeholder="Search By Company" class="form-control" type="text" id="txtSearchsuppliername"/>
+                        </div>
+
+                        <div class="form-group form-group-sm">
+                            <select class="form-control" id="cmbSearchItemtype"></select>
+                        </div>
+                        <div class="form-group form-group-sm">
+                            <select class="form-control" id="cmbSearchsupplierstatus"></select>
+                        </div>
+                        <input type="button" class="btn btn-warning btn-sm" value="Clear Search" id="btnSearchClear"/>
+                        <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                    </form>
+                    <hr/>
+
+
+                    <div class="table-responsive" id="tableParent">
+
+                        <script>
+
+                            function getItemsName(ob){
+                                var itemlist="";
+                                for(x in ob.supplyList)
+                                    itemlist = itemlist +"," +ob.supplyList[x].itemtypeId.type;
+
+                                return itemlist;
+                            }
+                            var metadata = [
+
+                                {name:'Company',search:true,datatype:'text',property:'company'},
+                                {name:'Items',search:true,datatype:'text',property:getItemsName},
+                                {name:'Contact person',search:true,datatype:'text',property:'contactname'},
+                                {name:'Status',search:true,datatype:'text',property:'supplierstatusId.status'},
+                                {name:'Contact number',search:true,datatype:'text',property:'contactno'},
+                            ];
+
+                            table("tableParent","tblSupplier",metadata,[3,10,15,30,500,1000],btnSearchMC);
+
+                        </script>
+
+                    </div>
+                    <ul id="pagination" class="pagination"></ul>
+                </div>
+        </div>
+        <!-- view eke div eka wahena thana -->
+
+
+    </div>
+    <!--<div class="modal fade" id="myModal" role="dialog">
+        <div class="modal-dialog modal-smnj" style="width:500px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body" >
+                    <iframe id="frmMainWindow" style="width:100%;height:500px;border:0;"></iframe>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>-->
+    <!-- tab pane eke div eka wahena thana -->
+    <div id="err" style="display: none">
+        <h3>Error Log</h3>
+    </div>
+</div>
+
+</body>
+</html>

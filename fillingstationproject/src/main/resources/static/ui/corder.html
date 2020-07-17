@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <title>Customer Order</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.v1.js"></script>
+    <script src="../script/ui.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            btnAddCorder.addEventListener("click",btnAddCorderMC);
+            cmbCategory.addEventListener("change",cmbCategoryCH);
+            cmbCustomer.addEventListener("change",cmbCustomerCH);
+            txtQuantity.addEventListener("keyup",txtQuantityKU);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+            cmbItem.addEventListener("change",cmbItemCH);
+
+            privilages = httpRequest("../privilages?module=corder","GET");
+            // changepasswordprivilages = httpRequest("../privilages?module=porderPASSWORDCHANGE","GET");
+
+            customerorderstatuses = httpRequest("../customerorderstatuses/list","GET");
+            employees = httpRequest("../employees/list","GET");
+            customers = httpRequest("../customers/list","GET");
+            items =  httpRequest("../items/list","GET");
+            categories = httpRequest("../categories/list","GET");
+
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+        }
+
+        function loadView() {
+
+            //Search Area
+            txtSearchorderno.value="";
+            // fillCombo(cmbSearchSupplier,"Supplier",customers,"company","");
+             fillCombo(cmbSearchcustomer,"Customer",customers,"name","");
+             fillCombo(cmbSearchcostatus,"Status",customerorderstatuses,"status","");
+            cmbSearchcustomer.style.background="";
+            cmbSearchcostatus.style.background="";
+            txtSearchorderno.style.background="";
+
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            var query ="&orderno=&customerid=&statusid=";
+            loadTable(1,cmbPageSize.value,query);
+
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            corders = new Array();
+            var data = httpRequest("/corders?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) corders = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblCorder',corders,fillForm);
+            clearSelection(tblCorder);
+            if(activerowno!="")selectRow(tblPorder,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldcorder==null){
+                paginate=true;
+            }else{
+                if(getupdates()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some updates or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno="";
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+        function loadForm() {
+
+            corder = new Object();
+            oldcorder = null;
+
+            corder.corderitemList = new Array();
+
+
+            //txtConumber.value = "678";
+
+            fillCombo(cmbCustomer,"Select Customer",customers,"name","");
+            fillCombo(cmbCategory,"Select Category",categories,"name","");
+            //fillCombo(cmbItem,"Select Items",items,"name","");
+            fillCombo(cmbEmployee,"",employees,"callingname",session.getObject("user").employeeId.callingname);
+            corder.employeeId=JSON.parse(cmbEmployee.value);
+            fillCombo(cmbCorderstatus,"",customerorderstatuses,"status","Pending");
+            corder.customerorderstatusId = JSON.parse(cmbCorderstatus.value);
+
+
+            refreshInnerForm();
+            CONumber = httpRequest("../corders/orderno","GET");
+            txtConumber.value = CONumber.no;
+            corder.orderno = txtConumber.value;
+            txtConumber.disabled = true;
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var dte = today.getDate();
+            if(dte<10) dte = "0"+dte;
+
+            dteDOCreated.value=today.getFullYear()+"-"+month+"-"+dte;
+            corder.entrydate=dteDOCreated.value;
+
+
+            cmbEmployee.disabled="disabled";
+
+            setStyle(initial);
+            cmbCorderstatus.style.background=valid;
+            cmbEmployee.style.background=valid;
+            txtConumber.style.background=valid;
+            dteDOCreated.style.background=valid;
+
+
+
+            disableButtons(false, true, true);
+            cmbItem.disabled =true;
+            cmbCategory.disabled = true;
+
+        }
+
+        function setStyle(style) {
+
+            txtConumber.style.background = style;
+            cmbCorderstatus.style.background = style;
+            cmbEmployee.style.background = style;
+            dteDOCreated.style.background = style;
+            cmbCategory.style.background = style;
+            //cmbItem.style.background = style;
+            cmbCustomer.style.background= style;
+
+        }
+
+        function disableButtons(add, upd, del,app) {
+
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+            if (app || !privilages.delete) btnApprove.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+
+        }
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (corder.customerId == null)
+                errors = errors + "\n" + "Customer is not selected";
+
+            if (corder.orderno == null)
+                errors = errors + "\n" + "Customer order number is not added";
+
+            if (corder.customerorderstatusId == null)
+                errors = errors + "\n" + "Status is not selected";
+
+            if (corder.entrydate == null)
+                errors = errors + "\n" + "Date is not selected";
+
+
+
+            return errors;
+        }
+
+        function btnAddMC(){
+
+            var errors = getErrors();
+
+            if(errors==""){
+
+                 var corderlist="";
+                 for(x in corder.corderitemList)
+                     corderlist = corderlist + (corderlist==""?"":", ") +corder.corderitemList[x].itemId.name;
+
+                var option = window.confirm("Are you sure to add following corder ?\n" +
+                    "\nordernumber : " + corder.orderno +
+                    "\nCustomer: : " + corder.customerId.name +
+                    "\nCorder Items : " + corderlist +
+                    "\nCustomer orderStatus : " + corder.customerorderstatusId.status +
+                    "\nDate : " + corder.entrydate );
+
+
+                if(option==true) {
+                    var response = httpRequest("/corders","POST",corder);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following updates\n"+errors); }
+        }
+
+        function btnClearMC() {
+
+            var clear;
+            if(oldcorder==null){
+                clear=true;
+            }else{
+                if(getUpdates()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblPorder);
+            }
+
+
+        }
+
+        function fillForm(coi,rowno){
+            activerowno = rowno;
+            var filling;
+            if(oldcorder==null){
+                filling=true;
+            }else{
+
+                if(getUpdates()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some updates or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblCorder);
+                selectRow(tblCorder,activerowno,active);
+
+                corder = JSON.parse(JSON.stringify(coi));
+                oldcorder = JSON.parse(JSON.stringify(coi));
+
+                fillCombo(cmbCustomer, "",customers, "name", corder.customerId.name);
+               // fillCombo(cmbItem, "",items, "name", corderitem.itemId.name);
+
+                txtConumber.value = corder.orderno;
+                txtConumber.disabled="disabled";
+                dteDOCreated.value=corder.entrydate;
+                cmbCustomer.disabled="disabled";
+
+               fillCombo(cmbCorderstatus,"Select corder Status",customerorderstatuses,"status","Pending");
+                cmbCorderstatus.disabled="disabled";
+                fillCombo(cmbEmployee, "", employees, "callingname", corder.employeeId.callingname);
+               // dteDOCreated.disabled="disabled";
+
+
+
+                cmbEmployee.disabled="disabled";
+                //cmbEmployeeCreated.disabled="disabled";
+                refreshInnerForm();
+                disableButtons(true, false, false);
+                setStyle(valid);
+            }
+
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(corder!=null && oldcorder!=null) {
+
+                if (isEqual(corder.corderitemList,oldcorder.corderitemList,"itemId"))
+                    updates = updates + "\nItems are Changed";
+
+                if (corder.customerId.name != oldcorder.customerId.name )
+                    updates = updates + "\nCustomer is Changed";
+
+                if (corder.orderno != oldcorder.orderno)
+                    updates = updates + "\nCorder no is Changed";
+
+
+                if (corder.porderstatusId.status != oldcorder.porderstatusId.status)
+                    updates = updates + "\ncorder status is Changed";
+
+
+                return updates;
+
+
+            }
+
+
+        }
+
+        function btnUpdateMC() {
+
+            var err = getErrors();
+            if (err == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/corders","PUT",corder);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadView();   // loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+                }}
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+
+                        var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                            "Customer order no : " +corder.orderno);
+
+                        if(option==true) {
+                            var response = httpRequest("/corders","DELETE",corder);
+                            if(response=="0"){
+                                toast("<strong>Success !</strong> Deleted Successfully","success");
+                                loadForm();
+                                loadSearchedTable();
+
+                            }
+                            else window.alert("Failed to Delete as \n\n"+response);
+                        }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable(){
+
+               var corderno = txtSearchorderno.value.trim();
+               var customer = cmbSearchcustomer.value;
+               var corderstatus = cmbSearchcostatus.value;
+
+               var customerid="";
+               if(customer!="Customer")
+               { customerid = JSON.parse(customer).id;
+                   cmbSearchcustomer.style.background = active;}
+
+               var statusid="";
+               if(corderstatus!="Status")
+               {  statusid = JSON.parse(corderstatus).id;
+                   cmbSearchcostatus.style.background = active; }
+
+               if(corderno!=""){  txtSearchorderno.style.background = active; }
+
+               var query ="&orderno=&customerid=&statusid=";
+
+               if(corderno!="" || customerid!="" || statusid!="" )
+                   query = "&orderno=" + corderno + "&customerid=" + customerid + "&statusid=" + statusid;
+
+               loadTable(activepage, cmbPageSize.value, query);
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+
+
+
+        function btnAddCorderMC() {
+            //console.log("btnAddCorderMC")
+
+            corderitem = new Object();
+            corderitem.itemId = JSON.parse(cmbItem.value);//i
+
+
+            if (txtQuantity.value!=null) {
+                txtQuantity.style.background = valid;
+                corderitem.quantity = txtQuantity.value.trim();
+                corder.corderitemList.push(corderitem);
+                //console.log(corder.corderitemList);
+               // window.alert("haha");
+            } else {
+
+            }
+            refreshInnerForm();
+
+        }
+
+        function refreshInnerForm() {
+            txtQuantity.value = "";
+            txtQuantity.style.background = initial;
+
+            fillCombo(cmbItem, "select Items", items, "name", "");
+
+            fillInnerTable("tblCorderItem", corder.corderitemList, removeItem);
+
+        }
+
+         function removeItem(corderitemList,index) {
+             corder.corderitemList.splice(index-1,1);
+             refreshInnerForm();
+        }
+
+        function txtQuantityKU() {
+
+            //window.alert(txtQuantity.value);
+
+            var val = /^([0-9]{1,8})$/;
+
+            if (txtQuantity.value.match(val)){
+
+                txtQuantity.style.background = valid;
+            }else{
+
+                txtQuantity.style.background = invalid;
+
+            }
+
+
+        }
+
+        function cmbCategoryCH(){
+
+            cmbItem.disabled = false;
+
+            var items = httpRequest("../items/listbycategory?categoryId="+ JSON.parse(cmbCategory.value).id, "GET");
+            fillCombo(cmbItem,"Select a Item",items,"name","");
+
+            cmbItem.style.background=valid;
+
+
+        }
+
+        function cmbCustomerCH() {
+
+            cmbCategory.disabled=false;
+
+        }
+
+        function cmbItemCH(){
+            txtQuantity.value = JSON.parse(cmbItem.value).roq;
+            txtQuantity.style.background = valid;
+        }
+
+    </script>
+
+
+
+
+</head>
+<body style="height:1000px;">
+<div class="container-fluid" style="background-color: #0c5460">
+    <h3 style="color: #FFFFE3">CUSTOMER ORDER MANAGEMENT</h3>
+    <ul class="nav nav-tabs">
+        <li class="active"><a data-toggle="tab" href="#AddCorder">Add corder</a></li>
+        <li><a data-toggle="tab" href="#ViewCorder">View corder</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="AddCorder" class="tab-pane fade in active">
+            <div class="row" id="ui">
+                <div class="col-md-12">
+                    <div class="panel panel-primary" style="margin-top: 10px;">
+                        <div class="panel-body"   style="background-image: url('../image/station.jpg');background-repeat: no-repeat;background-size: 1100px 800px">
+                            <div class="row">
+
+                                <div class="col-md-8 col-md-offset-2" id="form">
+                                    <form class="form-horizontal" onsubmit="return false" id="corderform" >
+
+                        <script>
+
+                            // Defining UI-Componnets and Layouts
+                            // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                            textField('corderform','txtConumber','CONumber<span style="color:red;font-size:20px">*<span>','Co number(TEFPxxxx)','',4,"",'corder','orderno','oldcorder');
+
+                            //comboBox('corderform','cmbCustomer','Supplier',4,'corder','supplierId','oldcorder');
+
+                            comboBox('corderform','cmbCustomer','Select Customer<span style="color:red;font-size:20px">*<span>',4,'corder','customerId','oldcorder');
+                        </script>
+                        <div id="innerform" style="background-color: rgba(0,0,0,0.1); padding: 20px 10px;margin-bottom:15px">
+                            <script>
+                                comboBox('innerform','cmbCategory','Category',4,'','','');
+                                comboBox('innerform','cmbItem','Items<span style="color:red;font-size:20px">*<span>',4,'itemId.name','','');
+                                textField('innerform','txtQuantity','Quantity<span style="color:red;font-size:20px">*<span>','quantity','',4,"",'','','');
+                            </script>
+                            <div class="text-right" style="margin-bottom: 10px">
+                                <input  class="btn btn-primary btn-sm" type="button" id="btnAddCorder" value="Add" style=""/>
+                            </div>
+                            <div class="row">
+                                <div class="table-responsive col-md-12 " id="tableInnerParent">
+                                    <script>
+                                        var metadatainnertable = [
+                                            {name:'Item',search:false,datatype:'text',property:'itemId.name'},
+                                            {name:'Quantity',search:false,datatype:'text',property:'quantity'},
+                                        ];
+                                        tableForInnerForm("tableInnerParent","tblCorderItem",metadatainnertable,true);
+                                    </script>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <script>
+
+                            comboBox('corderform','cmbCorderstatus','Customer order status<span style="color:red;font-size:20px">*<span>',4,'corder','customerorderstatusId','oldcorder');
+                            comboBox('corderform','cmbEmployee','Created Employee<span style="color:red;font-size:20px">*<span>',4,'corder','employeeId','oldcorder');
+                            dateField('corderform','dteDOCreated','Created Date<span style="color:red;font-size:20px">*<span>','Select Created Date',4,"",'corder','entrydate','oldcorder')
+
+
+
+                            // Custom UI-Componnets and Layouting
+
+                            //listTransfer('corderform','porderitem','Items',4,'corder','oldcorder','supplyList','itemId');
+
+
+
+
+
+                            //List-Transfer Functions
+
+
+
+                        </script>
+
+
+                        <div class="text-right">
+                            <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                            <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                            <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                            <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                        </div>
+
+
+                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="ViewCorder" class="tab-pane fade ">
+
+                <div class="col-md-12" id="porderview">
+
+                    <form class="form-inline" onsubmit="return false">
+
+                        <div class="form-group form-group-sm">
+                            <input placeholder="Search By CO number" class="form-control" type="text" id="txtSearchorderno"/>
+                        </div>
+                        <div class="form-group form-group-sm">
+                            <select class="form-control" id="cmbSearchcustomer"></select>
+                        </div>
+                        <div class="form-group form-group-sm">
+                            <select class="form-control" id="cmbSearchcostatus"></select>
+                        </div>
+                        <input type="button" class="btn btn-warning btn-sm" value="Clear Search" id="btnSearchClear"/>
+                        <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                    </form>
+                    <hr/>
+
+
+                    <div class="table-responsive" id="tableParent">
+
+                        <script>
+
+
+                            /*function getItemsName(ob){
+                                var itemlist="";
+                                for(x in ob.corderitemList)
+                                    itemlist = itemlist +"," +ob.corderitemList[x].itemId.name
+                                return itemlist;
+                            }*/
+
+                            var metadata = [
+                                {name:'Customer',search:true,datatype:'text',property:'customerId.name'},
+                                {name:'CONumber',search:true,datatype:'text',property:'orderno'},
+                                //{name:'Items',search:true,datatype:'text',property:getItemsName},
+                                //name:'Total',search:true,datatype:'text',property:},
+                                {name:'Status',search:true,datatype:'text',property:'customerorderstatusId.status'}
+                            ];
+
+                            table("tableParent","tblCorder",metadata,[3,10,15,30,500,1000],btnSearchMC);
+
+                        </script>
+                    </div>
+
+                    </div>
+                    <ul id="pagination" class="pagination"></ul>
+                </div>
+        </div>
+        <!-- view eke div eka wahena thana -->
+
+
+    </div>
+    <!-- tab pane eke div eka wahena thana -->
+    <div id="err" style="display: none">
+        <h3>Error Log</h3>
+    </div>
+</div>
+
+</body>
+</html>

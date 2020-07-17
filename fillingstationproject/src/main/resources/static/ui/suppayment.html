@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Supplier Payment</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.v1.js"></script>
+    <script src="../script/ui.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            cmbGrn.addEventListener("change",cmbGrnCH);
+            txtDisprice.addEventListener("change",txtDispriceCH);
+            txtPaid.addEventListener("change",txtPaidCH);
+
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+            privilages = httpRequest("../privilages?module=PAYMENT","GET");
+
+            regexes = httpRequest("../regexes/payment","GET");
+
+            txtTotal.setAttribute("data-pattern",regexes.nettotal.regex);
+            txtPaid.setAttribute("data-pattern",regexes.paidtotal.regex);
+            txtBalance.setAttribute("data-pattern",regexes.totalbalance.regex);
+
+
+            paymenttypes = httpRequest("../paymenttypes/list","GET");
+            grns = httpRequest("../grns/list","GET");
+            employees = httpRequest("../employees/list","GET");
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+
+        }
+
+        function loadView() {
+
+            //Search Area
+            txtSearchPayno.value="";
+            txtSearchPayno.style.background = "";
+            fillCombo(cmbSearchtype,"Type",paymenttypes,"type","");
+            cmbSearchtype.style.background = "";
+
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            var query = "&payno=&paymenttypeid=";
+            loadTable(1,cmbPageSize.value,query);
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            payments = new Array();
+            var data = httpRequest("/payments?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) payments = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblSuppay',payments,fillForm);
+            clearSelection(tblSuppay);
+            if(activerowno!="")selectRow(tblSuppay,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldpayment==null){
+                paginate=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno=""
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+        function loadForm() {
+            payment = new Object();
+            oldpayment = null;
+
+            fillCombo(cmbGrn,"Select GRN",grns,"grnno","");
+            fillCombo(cmbPaymenttype,"",paymenttypes,"type","Cash");
+            fillCombo(cmbEmployee,"",employees,"callingname",session.getObject("user").employeeId.callingname);
+
+            paynumber = httpRequest("../payments/payno","GET");
+            txtPayno.value = paynumber.no;
+            payment.payno = txtPayno.value;
+            txtPayno.disabled = true;
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var datee = today.getDate();
+            if(datee<10) datee = "0"+datee;
+
+            dteDOEnter.value=today.getFullYear()+"-"+month+"-"+datee;
+            //alert( dteDOEnter.value);
+
+            payment.date=dteDOEnter.value;
+            payment.paymenttypeId=JSON.parse(cmbPaymenttype.value);
+            payment.employeeId = JSON.parse(cmbEmployee.value);
+
+            cmbEmployee.disabled = "disabled";
+            dteDOEnter.disabled="disabled";
+
+
+            txtPaid.value="";
+            txtBalance.value="";
+            txtDisprice.value="";
+
+
+            setStyle(initial);
+            txtPayno.style.background = valid;
+            cmbPaymenttype.style.background=valid;
+            cmbEmployee.style.background=valid;
+            dteDOEnter.style.background=valid;
+            disableButtons(false, true, true);
+        }
+
+        function setStyle(style) {
+
+            txtPayno.style.background = style;
+            txtTotal.style.background = style;
+            txtPaid.style.background = style;
+            txtBalance.style.background = style;
+            txtDisprice.style.background = style;
+            dteDOEnter.style.background = style;
+            cmbPaymenttype.style.background = style;
+            cmbGrn.style.background = style;
+            cmbEmployee.style.background = style;
+
+        }
+
+        function disableButtons(add, upd, del) {
+
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+        }
+
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (payment.payno == null)
+                errors = errors + "\n" + regexes.payno.message;
+
+            if (payment.nettotal == null)
+                errors = errors + "\n" + regexes.nettotal.message;
+
+            if (payment.paidtotal == null)
+                errors = errors + "\n" + regexes.paidtotal.message;
+
+            if (payment.totalbalance == null)
+                errors = errors + "\n" + regexes.totalbalance.message;
+
+            if (payment.paymenttypeId == null)
+                errors = errors + "\n" + "Payment type is Not Selected";
+
+            if (payment.grnnoteId == null)
+                errors = errors + "\n" + "GRN is Not Selected";
+
+            if (payment.employeeId == null)
+                errors = errors + "\n" + "Employee is Not Selected";
+
+
+            return errors;
+
+        }
+
+        function btnAddMC() {
+
+            var errors = getErrors();
+
+            if(errors=="") {
+                var option = window.confirm("Are you sure to add following Employee ?\n" +
+                    "\nPayment no : " + payment.payno +
+                    "\nTotal payment : " + payment.nettotal +
+                    "\nPaid total : " + payment.paidtotal +
+                    "\nTotal balance : " + payment.totalbalance +
+                    "\nPaid Date: " + payment.date +
+                    "\nEntered Employee : " + payment.employeeId.callingname +
+                    "\nGRN : " + payment.grnnoteId.grnno +
+                    "\nPayment type : " + payment.paymenttypeId.type);
+
+                if(option==true) {
+                    var response = httpRequest("/payments","POST",payment);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following Errors\n"+errors); }
+
+        }
+
+        function btnClearMC() {
+            //Get Cofirmation from the User window.confirm();
+
+            var clear;
+            if(oldpayment==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblCustomer);
+            }
+
+
+
+
+        }
+
+        function fillForm(sup,rowno){
+            activerowno = rowno;
+            var filling;
+            if(oldpayment==null){
+                filling=true;
+            }else{
+
+                if(getErrors()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblSuppay);
+                selectRow(tblSuppay,activerowno,active);
+
+                payment = JSON.parse(JSON.stringify(sup));
+                oldpayment = JSON.parse(JSON.stringify(sup));
+
+                txtPayno.value = payment.payno;
+                txtTotal.value = payment.nettotal;
+                txtPaid.value = payment.paidtotal;
+                txtBalance.value = payment.totalbalance;
+                txtDisprice.value = payment.discountprice;
+                dteDOEnter.value = payment.date;
+
+
+
+
+
+                fillCombo(cmbEmployee, "Select Employee", employees, "callingname", payment.employeeId.callingname);
+                fillCombo(cmbPaymenttype, "", paymenttypes, "type", payment.paymenttypeId.type);
+                fillCombo(cmbGrn, "", grns, "grnno", payment.grnnoteId.grnno);
+
+
+                disableButtons(true, false, false);
+                setStyle(valid);
+
+            }
+
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(payment!=null && oldpayment!=null) {
+
+                if (payment.payno != oldpayment.payno)
+                    updates = updates + "\nPayment no is Changed";
+
+                if (payment.nettotal != oldpayment.nettotal)
+                    updates = updates + "\nTotal amount is Changed";
+
+                if (payment.paidtotal != oldpayment.paidtotal)
+                    updates = updates + "\nPaid amount is Changed";
+
+                if (payment.totalbalance != oldpayment.totalbalance)
+                    updates = updates + "\nContact name is Changed";
+
+                if (payment.paymenttypeId != oldpayment.paymenttypeId)
+                    updates = updates + "\nPayment type is Changed";
+
+                if (payment.grnnoteId != oldpayment.grnnoteId)
+                    updates = updates + "\nGRN is Changed";
+
+                if (payment.employeeId != oldpayment.employeeId)
+                    updates = updates + "\nEmployee is Changed";
+
+
+
+
+            }
+
+            return updates;
+        }
+
+        function btnUpdateMC() {
+            var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/payments","PUT",payment);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+
+
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+            var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Payment no : " +payment.payno);
+
+            if(option==true) {
+                var response = httpRequest("/payments","DELETE",payment);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    loadForm();
+                    loadSearchedTable();
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable() {
+
+            var payno = txtSearchPayno.value;
+            var paymenttype = cmbSearchtype.value;
+
+            var paymenttypeid="";
+            if(paymenttype!="Type")
+            {  paymenttypeid = JSON.parse(paymenttype).id;
+                cmbSearchtype.style.background = active; }
+
+            if(payno!=""){  txtSearchPayno.style.background = active; }
+
+
+            var query ="&payno=&paymenttypeid=";
+
+            if(payno!="" || paymenttypeid!="" )
+                query = "&payno" + payno + "&paymenttypeid=" + paymenttypeid;
+
+            loadTable(activepage, cmbPageSize.value, query);
+
+        }
+
+
+        function cmbGrnCH(){
+            cmbGrn.style.background=valid;
+            payment.grnnoteId = JSON.parse(cmbGrn.value);
+
+            txtTotal.value=JSON.parse(cmbGrn.value).totalamount;
+            payment.nettotal=txtTotal.value;
+            txtTotal.style.background = valid;
+            txtTotal.disabled = "disabled";
+        }
+
+        function txtDispriceCH() {
+
+            txtDisprice.value =(parseInt(txtTotal.value));
+            payment.discountprice = txtDisprice.value;
+            txtDisprice.style.background=valid;
+
+        }
+
+        function txtPaidCH() {
+
+            txtBalance.value = (parseInt(txtTotal.value)- parseInt(txtDisprice.value)).toFixed(2);
+            payment.totalbalance=txtBalance.value;
+            txtBalance.style.background=valid;
+            txtBalance.disabled="disabled";
+
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+
+
+    </script>
+
+
+
+</head>
+
+<body style="height:1000px;">
+<div class="container-fluid" style="background-color: #0c5460">
+    <h3 style="color: #FFFFE3">SUPPLIER PAYMENT MANAGEMENT</h3>
+    <ul class="nav nav-tabs">
+        <li class="active"><a data-toggle="tab" href="#AddPayment">Add Payment</a></li>
+        <li><a data-toggle="tab" href="#ViewPayment">View Payment</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="AddPayment" class="tab-pane fade in active">
+            <div class="row" id="ui">
+                    <div class="col-md-12">
+                        <div class="panel panel-primary" style="margin-top: 10px;">
+                            <div class="panel-body"   style="background-image: url('../image/station.jpg');background-repeat: no-repeat;background-size: 1100px 800px">
+                                <div class="row">
+
+                                <div class="col-md-8 col-md-offset-2" id="form">
+                                    <form class="form-horizontal" onsubmit="return false" id="suppayform" >
+
+                                        <script>
+
+                                            // Defining UI-Componnets and Layouts
+                                            // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                                            textField('suppayform','txtPayno','Payment no<span style="color:red;font-size:20px">*<span>','Enter Payno here','',4,"",'payment','payno','oldpayment');
+                                            comboBox('suppayform','cmbGrn','GRN No.<span style="color:red;font-size:20px">*<span>',4,"",'payment','grnnoteId','oldpayment');
+                                            textField('suppayform','txtTotal','Total payment<span style="color:red;font-size:20px">*<span>','Enter Total payment Here','',4,"",'payment','nettotal','oldpayment');
+                                            textField('suppayform','txtDis','Discount<span style="color:red;font-size:20px">*<span>','Enter Discount Here','',4,"",'payment','discount','oldpayment');
+                                            textField('suppayform','txtDisprice','Discountprice<span style="color:red;font-size:20px">*<span>','Enter Discount price Here','',4,"",'payment','discountprice','oldpayment');
+                                            textField('suppayform','txtPaid','Paid total<span style="color:red;font-size:20px">*<span>','Enter Paid total Here','',4,"",'payment','paidtotal','oldpayment');
+                                            textField('suppayform','txtBalance','Total balance<span style="color:red;font-size:20px">*<span>','Enter Balance Here','',4,"",'payment','totalbalance','oldpayment');
+                                            dateField('suppayform','dteDOEnter','Paid Date<span style="color:red;font-size:20px">*<span>','Select Enter Date',4,"",'payment','date','oldpayment');
+                                            comboBox('suppayform','cmbPaymenttype','Payment type<span style="color:red;font-size:20px">*<span>',4,"",'payment','paymenttypeId','oldpayment');
+                                            comboBox('suppayform','cmbEmployee','Entered Employee<span style="color:red;font-size:20px">*<span>',4,'payment','employeeId','oldpayment');
+
+                                            // Custom UI-Componnets and Layouting
+
+                                        </script>
+
+
+
+
+                                        <div class="text-right">
+                                            <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                                            <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                                            <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                                            <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                                        </div>
+
+
+                                    </form>
+
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="ViewPayment" class="tab-pane fade ">
+
+            <div class="col-md-12" id="paymentview">
+                <form class="form-inline" onsubmit="return false">
+                    <div class="form-group form-group-sm">
+                        <input placeholder="Search By Payno" class="form-control" type="text" id="txtSearchPayno"/>
+                    </div>
+                    <div class="form-group form-group-sm">
+                        <select class="form-control" id="cmbSearchtype"></select>
+                    </div>
+
+                    <input type="button" class="btn btn-warning btn-sm" value="Clear" id="btnSearchClear"/>
+                    <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                </form>
+                <hr/>
+                <div class="table-responsive" id="tableParent">
+
+                    <script>
+
+
+                        var metadata = [
+
+                            {name:'Payment No.',search:true,datatype:'text',property:'payno'},
+                            {name:'Total Payment',search:true,datatype:'text',property:'nettotal'},
+                            {name:'Paid Total',search:true,datatype:'text',property:'paidtotal'},
+                            {name:'Balance',search:true,datatype:'text',property:'totalbalance'},
+                            {name:'Type',search:true,datatype:'text',property:'paymenttypeId.type'}
+                        ];
+                        table("tableParent","tblSuppay",metadata,[3,10,15,30,500,1000],btnSearchMC,true);
+
+                    </script>
+
+
+                </div>
+                <ul id="pagination" class="pagination"></ul>
+            </div>
+        </div>
+        <!-- view eke div eka wahena thana -->
+
+
+    </div>
+    <!-- tab pane eke div eka wahena thana -->
+    <div id="err" style="display: none">
+        <h3>Error Log</h3>
+    </div>
+
+</div>
+</body>
+</html>

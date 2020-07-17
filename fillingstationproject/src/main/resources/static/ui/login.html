@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+<head>
+        <title>Dissanayake Filling Station</title><meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css" />
+        <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap-responsive.min.css" />
+        <link rel="stylesheet" href="../plugin/bootstrap/css/matrix-login.css" />
+        <link href="../plugin/bootstrap/fonts/font-awesome.css" rel="stylesheet" />
+        <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,700,800' rel='stylesheet' type='text/css'>
+    <script src="../script/common.v1.js"></script>
+    <script src="../script/ui.v1.js"></script>
+
+        <script src="../plugin/jquery/jquery.min.js"></script>
+       <!-- <script src="../plugin/bootstrap/js/matrix.login.js"></script>-->
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        function initialize() {
+            btnLogin.addEventListener("click", btnLoginMC);
+        }
+
+        function btnLoginMC() {
+
+            var username = txtUsername.value.trim();
+            var password = txtPassword.value.trim();
+
+            if (username != "" && password != ""){
+
+                ajax = new XMLHttpRequest();
+                ajax.open("POST", "/session", false);
+                ajax.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                ajax.send("username="+username+"&password="+password);
+                err.innerHTML=err.innerHTML+ajax.responseText;
+                if(ajax.status==200 && ajax.responseText!="") {
+                    sessionlog = JSON.parse(ajax.responseText);
+                    cookie.setValue("username",  username, 1);
+                    cookie.setValue("password", password, 1);
+                    cookie.setValue("sessionid", sessionlog.id, 1);
+                    session.setObject("user", sessionlog.userId);
+                    err.innerHTML = err.innerHTML + ajax.responseText;
+
+                    window.open("mainwindow", "_self");
+                }
+                else
+                    window.alert("Incorect User Details");
+            }
+            else
+                window.alert("Enter both Username or Password");
+        }
+
+    </script>
+
+    </head>
+    <body>
+        <div id="loginbox">            
+            <form id="loginform" class="form-vertical" >
+				 <div class="control-group normal_text"> <h3><img src="../image/final2.png" style="width:400px; height:150px;" alt="Logo" /></h3></div>
+                <div class="control-group">
+                    <div class="controls">
+                        <div class="main_input_box">
+                            <span class="add-on bg_lg"><i class="icon-user"> </i></span><input type="text" placeholder="Username" id="txtUsername" />
+                        </div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="controls">
+                        <div class="main_input_box">
+                            <span class="add-on bg_ly"><i class="icon-lock"></i></span><input type="password" placeholder="Password" id="txtPassword"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+
+                    <span class="pull-right btn btn-success" id="btnLogin" >Login</span>
+                </div>
+            </form>
+            <form id="recoverform" action="#" class="form-vertical">
+				<p class="normal_text">Enter your e-mail address below and we will send you instructions how to recover a password.</p>
+				
+                    <div class="controls">
+                        <div class="main_input_box">
+                            <span class="add-on bg_lo"><i class="icon-envelope"></i></span><input type="text" placeholder="E-mail address" />
+                        </div>
+                    </div>
+               
+<!--                <div class="form-actions">-->
+<!--                    <span class="pull-left"><a href="#" class="flip-link btn btn-success" id="to-login">&laquo; Back to login</a></span>-->
+<!--                    <span class="pull-right"><a class="btn btn-info"/>Recover</a></span>-->
+<!--                </div>-->
+            </form>
+        </div>
+        <div id="err" style="display: none"></div>
+
+
+
+    </body>
+
+</html>

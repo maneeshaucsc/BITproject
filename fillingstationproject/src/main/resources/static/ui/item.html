@@ -1,0 +1,796 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Item</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.v1.js"></script>
+    <script src="../script/ui.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+            cmbCategory.addEventListener("change",cmbCategoryCH);
+            cmbItemtype.addEventListener("change",cmbItemtypeCH);
+            cmbSubcategory.addEventListener("change",cmbSubcategoryCH);
+            cmbUnitamount.addEventListener("change",cmbUnitamountCH);
+            txtCprice.addEventListener("keyup",txtCpriceKU);
+
+            privilages = httpRequest("../privilages?module=item","GET");
+
+            regexes = httpRequest("../regexes/item","GET");
+          //  txtCode.setAttribute("data-pattern",regexes.code.regex);
+            txtCprice.setAttribute("data-pattern",regexes.currentsalesprice.regex);
+            txtQty.setAttribute("data-pattern",regexes.quantity.regex);
+            txtRop.setAttribute("data-pattern",regexes.rop.regex);
+            txtRoq.setAttribute("data-pattern",regexes.roq.regex);
+
+            itemstatuses = httpRequest("../itemstatuses/list","GET");
+            itemtypes = httpRequest("../itemtypes/list","GET");
+            tanks = httpRequest("../tanks/list","GET");
+            meters = httpRequest("../meters/list","GET");
+            employees = httpRequest("../employees/list","GET");
+            brands = httpRequest("../brands/list","GET");
+            unitamounts = httpRequest("../unitamounts/list","GET");
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+        }
+
+        function loadView() {
+
+            //Search Area
+            fillCombo(cmbSearchItemtype,"Itemtype",itemtypes,"type","");
+            fillCombo(cmbSearchBrand,"Brand",brands,"name","");
+            cmbSearchItemtype.style.background = "";
+            cmbSearchBrand.style.background = "";
+
+
+
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            var query ="&brandid=&itemtypeid=";
+            loadTable(1,cmbPageSize.value,query);
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            items = new Array();
+            var data = httpRequest("/items?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) items = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblItem',items,fillForm);
+            clearSelection(tblItem);
+            if(activerowno!="")selectRow(tblItem,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(olditem==null){
+                paginate=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno="";
+                loadSearchedTable();
+                loadForm();
+            }
+        }
+
+        function loadForm() {
+            item = new Object();
+            olditem = null;
+
+
+            fillCombo(cmbItemtype,"Select Item type",itemtypes,"type","");
+            fillCombo(cmbUnitamount,"Select Unit amount",unitamounts,"amount","");
+            fillCombo(cmbCategory,"Select Category",'',"name","");
+            fillCombo(cmbSubcategory,"Select Subcategory",'',"name","");
+            fillCombo(cmbMeter,"Select Meter",meters,"code","");
+            fillCombo(cmbTank,"Select Tank",tanks,"code","");
+
+            fillCombo(cmbEmployee,"",employees,"callingname",session.getObject("user").employeeId.callingname);
+            item.employeeId=JSON.parse(cmbEmployee.value);
+            cmbEmployee.disabled="disabled";
+            cmbSubcategory.disabled = "disabled";
+            cmbCategory.disabled = "disabled";
+            cmbMeter.disabled = "disabled";
+            cmbTank.disabled = "disabled";
+            txtBrand.disabled = "disabled";
+
+
+
+            fillCombo(cmbItemstatus,"",itemstatuses,"status","New");
+            item.itemstatusId =JSON.parse(cmbItemstatus.value);
+            cmbItemstatus.disabled=true;
+
+            itemcode = httpRequest("../items/code","GET");
+            txtCode.value = itemcode.no;
+            item.code =  txtCode.value;
+            txtCode.disabled=true;
+
+           // txtCode.value = "";
+            txtName.value = "";
+            txtBrand.value = "";
+
+            txtCprice.value = "";
+            txtQty.value = "";
+            txtRoq.value = "";
+
+
+            txtRop.value = "";
+
+            setStyle(initial);
+            cmbItemstatus.style.background=valid;
+            cmbEmployee.style.background=valid;
+            txtCode.style.background=valid;
+            disableButtons(false, true, true);
+        }
+
+        function setStyle(style) {
+
+            txtCode.style.background = style;
+            txtName.style.background = style;
+            txtBrand.style.background = style;
+            txtBrand.style.background = style;
+            txtQty.style.background = style;
+            txtRop.style.background = style;
+            txtRoq.style.background = style;
+            cmbCategory.style.background = style;
+            cmbSubcategory.style.background = style;
+            txtCprice.style.background = style;
+            cmbItemtype.style.background = style;
+            cmbUnitamount.style.background = style;
+            cmbTank.style.background = style;
+            cmbMeter.style.background = style;
+            cmbItemstatus.style.background = style;
+            // cmbEmployee.style.background = style;
+
+        }
+
+        function disableButtons(add, upd, del) {
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+        }
+
+
+        // Binding and Validation Functions for Non-Regex-Based
+        // When Regex-Based default validation is used, programmers do not need to define these functions
+        // Default Validation and Binding is coded in "ui.bitproject.earth.lk.js"
+
+
+
+
+        //Form Operation Functions
+
+        function getErrors() {
+
+
+
+            var errors = "";
+
+            if (item.code == null)
+                errors = errors + "\n" + regexes.code.message;
+
+            if (item.currentsalesprice == null)
+                errors = errors + "\n" + regexes.currentsalesprice.message;
+
+            if (item.quantity == null)
+                errors = errors + "\n" + regexes.quantity.message;
+
+            if (item.rop == null)
+                errors = errors + "\n" + regexes.rop.message;
+
+            if (item.roq == null)
+                errors = errors + "\n" + regexes.roq.message;
+
+            if (item.itemtypeId == null)
+                errors = errors + "\n" + "Item type is Not Selected";
+
+            if (cmbCategory.value == "Select Category")
+                errors = errors + "\n" + "Category is Not Selected";
+
+
+            if (item.subcategoryId== null)
+                errors = errors + "\n" + "Subcategory is Not Selected";
+
+            if (item.tankId== null)
+                errors = errors + "\n" + "Tank is Not Selected";
+
+            if (item.meterId == null)
+                errors = errors + "\n" + "Meter is Not Selected";
+
+
+            return errors;
+
+
+        }
+
+        function btnAddMC() {
+
+            var errors = getErrors();
+
+            if(errors=="") {
+
+                var option = window.confirm("Are you sure to add following item ?\n" +
+                    "\nCode : " + item.code +
+                    "\nName : " + item.name +
+                    "\nItem type : " + item.itemtypeId.type +
+                    "\nBrand : " + item.itemtypeId.brandId.name +
+                    "\nitem Status : " + item.itemstatusId.status +
+                    "\nCurrent price : " + item.currentsalesprice +
+                    "\nReorder point : " + item.rop +
+                    "\nQuantity : " + item.quantity +
+                    "\nReorder Quantity : " + item.roq +
+                    "\nCategory : " + JSON.parse(cmbCategory.value).name +
+                    "\nSubcategory : " + item.subcategoryId.name +
+                    "\nTank  : " + item.tankId.code +
+                    "\nMeter  : " + item.meterId.code);
+
+
+
+                if(option==true) {
+                    var response = httpRequest("/items","POST",item);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following Errors\n"+errors); }
+
+        }
+
+        function btnClearMC() {
+            //Get Cofirmation from the User window.confirm();
+
+            var clear;
+            if(olditem==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblItem);
+            }
+
+
+
+        }
+
+        function fillForm(itm,rowno){
+            activerowno = rowno;
+            var filling;
+            if(olditem==null){
+                filling=true;
+            }else{
+
+                if(getErrors()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblItem);
+                selectRow(tblItem,activerowno,active);
+
+                item = JSON.parse(JSON.stringify(itm));
+                olditem = JSON.parse(JSON.stringify(itm));
+
+                txtCode.value = item.code;
+                txtBrand.value = item.itemtypeId.brandId.name;
+                txtName.value = item.name;
+                txtQty.value=item.quantity;
+                txtCprice.value = item.currentsalesprice;
+                txtBrand.value = item.brand;
+                txtRop.value = item.rop;
+                txtRoq.value = item.roq;
+
+
+
+                //fillCombo(cmbCategory, "Select Category", categories, "name", item.subcategoryId.categoryId.name);
+                //fillCombo(cmbSubcategory, "Select Subcategory", subcategories, "name", item.subcategoryId.name);
+                fillCombo(cmbItemtype, "Select Item Type", itemtypes, "type", item.itemtypeId.type);
+                fillCombo(cmbUnitamount, "Select Unitamount", unitamounts, "amount", item.unitamountId.amount);
+                fillCombo(cmbTank, "Select Tank", tanks, "code", item.tankId.code);
+                fillCombo(cmbMeter, "Select Meter", meters, "code", item.meterId.code);
+                fillCombo(cmbEmployee, "Select Employee", employees, "callingname", item.employeeId.callingname);
+
+
+                categories = httpRequest("../categories/listbyitype?itemtypeId="+ JSON.parse(cmbItemtype.value).id, "GET");
+                fillCombo(cmbCategory,"Select Category",categories,"name",item.subcategoryId.categoryId.name);
+
+
+                fillCombo(cmbItemstatus, "Select item status", itemstatuses, "status", item.itemstatusId.status);
+
+                subcategories = httpRequest("../subcategories/listbycategory?categoryId=" + JSON.parse(cmbCategory.value).id, "GET");
+                fillCombo(cmbSubcategory, "Select Subcategory", subcategories, "name", item.subcategoryId.name);
+
+                unitamounts = httpRequest("../unitamounts/listbyscategory?subcategoryId="+ JSON.parse(cmbSubcategory.value).id, "GET");
+                fillCombo(cmbUnitamount,"Select Unit amount",unitamounts,"amount",item.unitamountId.amount);
+
+                cmbCategory.disabled=false;
+                cmbSubcategory.disabled=false;
+                cmbUnitamount.disabled=false;
+
+                disableButtons(true, false, false);
+                setStyle(valid);
+
+
+            }
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(item!=null && olditem!=null) {
+
+                if (item.code != olditem.code)
+                    updates = updates + "\nCode is Changed";
+
+                if (item.name != olditem.name)
+                    updates = updates + "\nName is Changed";
+
+                if (item.quantity != olditem.quantity)
+                    updates = updates + "\nQuantity is Changed";
+
+                if (item.volume != olditem.volume)
+                    updates = updates + "\nVolume is Changed";
+
+                if (item.currentsalesprice != olditem.currentsalesprice)
+                    updates = updates + "\nCurrentprice is Changed";
+
+
+                if (item.rop != olditem.rop)
+                    updates = updates + "\nReorder point is Changed";
+
+                if (item.roq != olditem.roq)
+                    updates = updates + "\nReorder quantity is Changed";
+
+                /* if (item.brandId.name != olditem.brandId.name)
+                     updates = updates + "\nBrand is Changed";
+ */
+                if (item.categoryId != olditem.categoryId)
+                    updates = updates + "\nCategory is Changed";
+
+                if (item.subcategoryId.name != olditem.subcategoryId.name)
+                    updates = updates + "\nSubcategory is Changed";
+
+                if (item.itemtypeId.type != olditem.itemtypeId.type)
+                    updates = updates + "\nItem type is Changed";
+
+                if (item.unitamountId.amount != olditem.unitamountId.amount)
+                    updates = updates + "\nUnitamount is Changed";
+
+                if (item.tankId.code != olditem.tankId.code)
+                    updates = updates + "\nTank is Changed";
+
+                if (item.meterId.code != olditem.meterId.code)
+                    updates = updates + "\nMeter is Changed";
+
+                if (item.itemstatusId.status != olditem.itemstatusId.status)
+                    updates = updates + "\nItemstatus is Changed";
+
+                if (item.employeeId.callingname != olditem.employeeId.callingname)
+                    updates = updates + "\nEmployee is Changed";
+
+
+
+            }
+
+            return updates;
+        }
+
+        function btnUpdateMC() {
+            var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/items","PUT",item);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+
+
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+
+            var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Code : " +item.code+ "\nItem : " + item.itemtypeId.type);
+
+            if(option==true) {
+                var response = httpRequest("/items","DELETE",item);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    loadForm();
+                    loadSearchedTable();
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+
+        }
+
+        function cmbCategoryCH() {
+            cmbCategory.style.background=valid;
+            cmbSubcategory.style.background=initial;
+            cmbSubcategory.disabled="";
+
+            var subcategories = httpRequest("../subcategories/listbycategory?categoryId="+ JSON.parse(cmbCategory.value).id, "GET");
+            fillCombo(cmbSubcategory,"Select a Subcategory",subcategories,"name","");
+
+
+            if(olditem !=null && olditem.subcategoryId.categoryId.name != JSON.parse(cmbCategory.value).name){
+                cmbCategory.style.background=updated;
+                cmbSubcategory.style.background=initial;
+                cmbSubcategory.disabled="";
+
+            }
+
+            else{
+                cmbCategory.style.background=valid;
+            }
+
+            if(JSON.parse(cmbCategory.value).name=="Grease") {
+                fillCombo(cmbSubcategory, "Select a Subcategory", subcategories, "name", "Tins");
+                cmbSubcategory.disabled = true;
+            }
+
+        }
+
+        function cmbSubcategoryCH() {
+
+            cmbSubcategory.style.background=valid;
+
+
+            // var unitamounts  = httpRequest("../unitamounts/listbyscategory?subcategoryId="+ JSON.parse(cmbSubcategory.value).id, "GET");
+            //
+
+            if(olditem !=null && olditem.subcategoryId.name != JSON.parse(cmbSubcategory.value).name){
+                cmbSubcategory.style.background=updated;
+                cmbUnitamount.style.background=initial;
+
+            }
+
+
+            else{
+                cmbSubcategory.style.background=valid;
+            }
+
+            if(JSON.parse(cmbItemtype.value).name=="Fuel"){
+                if (cmbCategory.value!="Select Category"&&cmbSubcategory.value!="Select Subcategory"){
+                    txtName = item.subcategoryId.categoryId.name+""+item.subcategoryId.name
+                }
+            }
+
+
+        }
+
+        function cmbUnitamountCH() {
+
+           if(JSON.parse(cmbItemtype.value).type != "Battery water"){
+               txtName.value = JSON.parse(cmbCategory.value).name+" "+ JSON.parse(cmbSubcategory.value).name +" "+ JSON.parse(cmbUnitamount.value).amount;
+                item.name=txtName.value;
+                txtName.style.background=valid;
+                txtName.disabled=true;
+            }else {
+               txtName.value = JSON.parse(cmbItemtype.value).type + " " + txtBrand.value;
+               item.name = txtName.value;
+               txtName.style.background=valid;
+               txtName.disabled=true;
+           }
+            // if(JSON.parse(cmbItemtype.value).name=="Lubricants"){
+            //     if (cmbCategory.value!="Select Category"&&cmbSubcategory.value!="Select Subcategory"&&cmbUnitamount.value!="Select Unit amount"){
+            //         txtName = item.subcategoryId.categoryId.name+""+item.subcategoryId.name+""+item.unitamountId.amount
+            //     }
+            // }
+
+
+
+        }
+
+        function cmbItemtypeCH() {
+
+            txtBrand.value = item.itemtypeId.brandId.name;
+            txtBrand.style.background=valid;
+            txtBrand.disabled="disabled";
+            cmbItemtype.style.background=valid;
+            cmbCategory.style.background=initial;
+            cmbCategory.disabled="";
+            cmbSubcategory.disabled="";
+            cmbTank.disabled = false;
+            cmbMeter.disabled = false;
+
+
+            var categories = httpRequest("../categories/listbyitype?itemtypeId="+ JSON.parse(cmbItemtype.value).id, "GET");
+            fillCombo(cmbCategory,"Select a Category",categories,"name","");
+
+
+        }
+
+
+
+        //Search Functions
+
+        function loadSearchedTable() {
+            var brand = cmbSearchBrand.value;
+            var itemtype = cmbSearchItemtype.value;
+
+            var brandid="";
+            if(brand!="Brand")
+            { brandid = JSON.parse(brand).id;
+                cmbSearchBrand.style.background = active;}
+
+            var itemtypeid="";
+            if(itemtype!="Itemtype")
+            { itemtypeid = JSON.parse(itemtype).id;
+                cmbSearchItemtype.style.background = active;}
+
+
+
+
+
+            var query ="&brandid=&itemtypeid=";
+
+            if(brandid!="" || itemtypeid!="" )
+                query = "&brandid=" + brandid + "&itemtypeid=" + itemtypeid ;
+
+            //window.alert(query);
+            loadTable(activepage, cmbPageSize.value, query);
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+        function txtCpriceKU(){
+            if(txtCprice.value=="0.00"){
+                txtCprice.style.background= invalid;
+            }
+        }
+
+
+        function AddNewStatusMC() {
+            frmMainWindow.src = 'http://localhost:8080/ui/itemstatus';
+            $('#myModal').on('hidden.bs.modal', function () {
+                itemtypes = httpRequest("../itemstatuses/list","GET");
+                fillCombo(cmbItemstatus,"Select Itemstatus",itemstatuses,"status","");
+                cmbModelItemstatus.style.background=initial;
+            })
+            $('#myModal').modal('show');
+
+        }
+
+        function AddNewMeterMC() {
+            frmMainWindow.src = 'http://localhost:8080/ui/meter';
+            $('#myModal').on('hidden.bs.modal', function () {
+                meters = httpRequest("../meters/list","GET");
+                fillCombo(cmbItemstatus,"Select Meter",meters,"code","");
+                cmbModelMeter.style.background=initial;
+            })
+            $('#myModal').modal('show');
+
+        }
+
+        function AddNewTankMC() {
+            frmMainWindow.src = 'http://localhost:8080/ui/tank';
+            $('#myModal').on('hidden.bs.modal', function () {
+                tanks = httpRequest("../tanks/list","GET");
+                fillCombo(cmbItemstatus,"Select Tank",tanks,"code","");
+                cmbModelTank.style.background=initial;
+            })
+            $('#myModal').modal('show');
+
+        }
+
+
+
+
+
+    </script>
+
+
+
+</head>
+
+<body style="height:1000px;">
+<div class="container-fluid" style="background-color: #0c5460">
+    <h3 style="color: #FFFFE3">ITEM MANAGEMENT</h3>
+    <ul class="nav nav-tabs">
+        <li class="active"><a data-toggle="tab" href="#AddItem">Add Item</a></li>
+        <li><a data-toggle="tab" href="#ViewItem">View Item</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="AddItem" class="tab-pane fade in active">
+            <div class="row" id="ui">
+                <div class="col-md-12">
+                    <div class="panel panel-primary" style="margin-top: 10px;">
+                        <div class="panel-body"  style="background-image: url('../image/station.jpg');background-repeat: no-repeat;background-size: 1100px 800px">
+                            <div class="row">
+
+                                <div class="col-md-8 col-md-offset-2" id="form">
+                                    <form class="form-horizontal" onsubmit="return false" id="itemform" >
+
+                                        <script>
+
+                                            textField('itemform','txtCode','Code<span style="color:red;font-size:20px">*<span>','Enter Code Here','',4,"",'item','code','olditem');
+                                            comboBox('itemform','cmbItemtype','Item type<span style="color:red;font-size:20px">*<span>',4,'item','itemtypeId','olditem',"New");
+                                            textField('itemform','txtBrand','Brand<span style="color:red;font-size:20px">*<span>','Enter Brand Here','',4,"",'item','name','olditem');
+                                            comboBox('itemform','cmbCategory','Category<span style="color:red;font-size:20px">*<span>',4,'item','categoryId','olditem',"New");
+                                            comboBox('itemform','cmbSubcategory','Subcategory<span style="color:red;font-size:20px">*<span>',4,'item','subcategoryId','olditem',"New");
+                                            comboBox('itemform','cmbUnitamount','Unit Amount<span style="color:red;font-size:20px">*<span>',4,'item','unitamountId','olditem',"New");
+                                            textField('itemform','txtName','Name<span style="color:red;font-size:20px">*<span>','Enter Name Here','',4,"",'item','name','olditem');
+                                            textField('itemform','txtCprice','Current price<span style="color:red;font-size:20px">*<span>','Enter Current price Here','',4,"",'item','currentsalesprice','olditem');
+                                            textField('itemform','txtQty','Quantity<span style="color:red;font-size:20px">*<span>','Enter Quantity Here','',4,"",'item','quantity','olditem');
+                                            textField('itemform','txtRoq','ROQ<span style="color:red;font-size:20px">*<span>','Enter Required Order Quantity Here','',4,"",'item','roq','olditem');
+                                            textField('itemform','txtRop','Reorder Point<span style="color:red;font-size:20px">*<span>','Enter Reorder Point Here','',4,"",'item','rop','olditem');
+                                            comboBox2('itemform','cmbItemstatus','Item Status<span style="color:red;font-size:20px">*<span>',4,'item','itemstatusId','olditem',"New",AddNewStatusMC);
+                                            comboBox2('itemform','cmbMeter','Meter<span style="color:red;font-size:20px">*<span>',4,'item','meterId','olditem',"New",AddNewMeterMC);
+                                            comboBox2('itemform','cmbTank','Tank<span style="color:red;font-size:20px">*<span>',4,'item','tankId','olditem',"New",AddNewTankMC);
+                                            comboBox('itemform','cmbEmployee','Entered Employee<span style="color:red;font-size:20px">*<span>',4,'item','employeeId','olditem');
+
+
+                                        </script>
+
+
+                                        <div class="text-right">
+                                            <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                                            <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                                            <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                                            <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                                        </div>
+
+
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="ViewItem" class="tab-pane fade ">
+
+
+
+            <div class="col-md-12" id="itemview">
+                <form class="form-inline" onsubmit="return false">
+
+                    <div class="form-group form-group-sm">
+                        <select class="form-control" id="cmbSearchBrand"></select>
+                    </div>
+                    <div class="form-group form-group-sm">
+                        <select class="form-control" id="cmbSearchItemtype"></select>
+                    </div>
+
+                    <input type="button" class="btn btn-warning btn-sm" value="Clear" id="btnSearchClear"/>
+                    <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                </form>
+                <hr/>
+                <div class="table-responsive" id="tableParent">
+
+                    <script>
+
+
+                        var metadata = [
+                            {name:'Category',search:true,datatype:'text',property:'subcategoryId.categoryId.name'},
+                            {name:'Subategory',search:true,datatype:'text',property:'subcategoryId.name'},
+                            {name:'Unit Amount',search:true,datatype:'text',property:'unitamountId.amount'},
+                            {name:'Current price',search:true,datatype:'text',property:'currentsalesprice'},
+                            {name:'Quantity',search:true,datatype:'text',property:'quantity'},
+
+                        ];
+                        table("tableParent","tblItem",metadata,[3,10,15,30,500,1000],btnSearchMC,true);
+
+                    </script>
+
+
+                </div>
+                <ul id="pagination" class="pagination"></ul>
+            </div>
+        </div>
+        <!-- view eke div eka wahena thana -->
+
+
+    </div>
+    <div class="modal fade" id="myModal" role="dialog">
+        <div class="modal-dialog modal-smnj" style="width:500px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body" >
+                    <iframe id="frmMainWindow" style="width:100%;height:500px;border:0;"></iframe>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- tab pane eke div eka wahena thana -->
+    <div id="err" style="display: none">
+        <h3>Error Log</h3>
+    </div>
+</div>
+
+</body>
+</html>

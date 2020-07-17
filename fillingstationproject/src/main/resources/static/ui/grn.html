@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+    <meta charset="UTF-8">
+    <title>GRN</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.v1.js"></script>
+    <script src="../script/ui.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            cmbSupplier.addEventListener("change",cmbSupplierMC);
+            cmbItem.addEventListener("change",cmbItemMC);
+            cmbPono.addEventListener("change",cmbPordernoMC);
+            btnAddGRN.addEventListener("click",btnAddGRNMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+
+
+            privilages = httpRequest("../privilages?module=GRNNOTE","GET");
+
+            suppliers = httpRequest("../suppliers/list","GET");
+            grnstatuses = httpRequest("../grnstatuses/list","GET");
+            employees = httpRequest("../employees/list","GET");
+            porders = httpRequest("../porders/list","GET");
+
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+        }
+
+        function loadView() {
+
+            //Search Area
+             txtSearchaGRNno.value="";
+             fillCombo(cmbSearchgrnstatus,"Status",grnstatuses,"status","");
+             cmbSearchgrnstatus.style.background = "";
+            txtSearchaGRNno.style.background = "";
+           //Table Area
+            activerowno = "";
+            activepage = 1;
+             var query ="&grnno=&statusid=";
+            loadTable(1,cmbPageSize.value,query);
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            grns = new Array();
+            var data = httpRequest("/grns?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) grns = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblGrn',grns,fillForm);
+            clearSelection(tblGrn);
+            if(activerowno!="")selectRow(tblGrn,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldgrnnote==null){
+                paginate=true;
+            }else{
+                if(getupdates()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some updates or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno=""
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+        function loadForm() {
+
+            grnnote = new Object();
+            oldgrnnote = null;
+
+            grnnote.grnnoteitemList = new Array();
+
+            fillCombo(cmbPono,"Select Purchase Order No","","pono","");
+            fillCombo(cmbSupplier,"Select Supplier",suppliers,"company","");
+            fillCombo(cmbItem,"Select Items",'',"name","");
+            fillCombo(cmbEmployee,"Select Employee",employees,"callingname",session.getObject("user").employeeId.callingname);
+            fillCombo(cmbGrnstatus,"Select GRN Status",grnstatuses,"status","Done");
+            grnnote.issuedate=dteDOCreated.value;
+            grnnote.employeeId=JSON.parse(cmbEmployee.value);
+            grnnote.grnstatusId=JSON.parse(cmbGrnstatus.value);
+            // grnnote.porderId=JSON.parse(cmbPono.value);
+            // cmbPono.disabled ="disabled";
+
+
+
+            grnnumber = httpRequest("../grns/grnno","GET");
+            txtGrnno.value = grnnumber.no;
+            grnnote.grnno = txtGrnno.value;
+            txtGrnno.disabled = true;
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var date = today.getDate();
+            if(date<10) date = "0"+date;
+
+            dteDOCreated.value=today.getFullYear()+"-"+month+"-"+date;
+            grnnote.issuedate =dteDOCreated.value;
+            cmbEmployee.disabled="disabled";
+            cmbGrnstatus.disabled="disabled";
+            dteDOCreated.disabled="disabled";
+
+            setStyle(initial);
+            cmbGrnstatus.style.background=valid;
+            dteDOCreated.style.background=valid;
+            cmbSupplier.style.background=valid;
+            //cmbPono.style.background=valid;
+            cmbEmployee.style.background=valid;
+            txtGrnno.style.background=valid;
+
+            refreshInnerForm();
+
+            disableButtons(false, true, true);
+
+
+        }
+
+        function setStyle(style) {
+
+            txtGrnno.style.background = style;
+            txtQuantity.style.background = style;
+            txtUnitprice.style.background = style;
+            cmbPono.style.background = style;
+            cmbSupplier.style.background = style;
+            txtTotalprice.style.background = style;
+
+        }
+
+        function disableButtons(add, upd, del) {
+
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+
+        }
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (grnnote.grnnoteitemList.length == 0)
+                errors = errors + "\n" + "Items are not selected";
+
+            if (grnnote.totalamount == null)
+                errors = errors + "\n" + "Total amount not selected";
+
+            if (grnnote.supplierId == null)
+                errors = errors + "\n" + "Supplier is not selected";
+
+            if (grnnote.employeeId == null)
+                errors = errors + "\n" + "Employee is not selected" ;
+
+            if (grnnote.grnno == null)
+                errors = errors + "\n" + "GRN number is not added";
+
+            if (grnnote.grnstatusId == null)
+                errors = errors + "\n" + "Status is not selected";
+
+            if (grnnote.issuedate == null)
+                errors = errors + "\n" + "Date is not selected";
+
+            return errors;
+        }
+
+        function btnAddMC(){
+            var errors = getErrors();
+
+            if(errors==""){
+                console.log(grnnote)
+
+                 var grnlist="";
+                 for(x in grnnote.grnnoteitemList)
+                     grnlist = grnlist + (grnlist==""?"":", ") +grnnote.grnnoteitemList[x].itemId.name
+
+                var option = window.confirm("Are you sure to add following grnnote ?\n" +
+                    "\npordernumber : " + grnnote.grnno +
+                    "\nSupplier: : " + grnnote.supplierId.company +
+                    "\nGRN Items : " + grnlist +
+                    "\nGrandTotal : " + grnnote.totalamount +
+                    "\nPurchaseorderStatus : " + grnnote.grnstatusId.status +
+                    "\nDate : " + grnnote.issuedate +
+                    "\nEntered By : " + grnnote.employeeId.callingname);
+
+
+                if(option==true) {
+                    var response = httpRequest("/grns","POST",grnnote);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following updates\n"+errors); }
+        }
+
+        function btnClearMC() {
+
+            var clear;
+            if(oldgrnnote==null){
+                clear=true;
+            }else{
+                if(getUpdates()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblGrn);
+            }
+
+
+        }
+
+        function fillForm(grn,rowno){
+            activerowno = rowno;
+            var filling;
+            if(oldgrnnote==null){
+                filling=true;
+            }else{
+
+                if(getUpdates()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some updates or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblGrn);
+                selectRow(tblGrn,activerowno,active);
+
+                grnnote = JSON.parse(JSON.stringify(grn));
+                oldgrnnote = JSON.parse(JSON.stringify(grn));
+
+                porderbysup = httpRequest("../porders/porderbysup?supplierId=" + JSON.parse(cmbSupplier.value).id, "GET");
+                fillCombo(cmbPono, "Select Purchase Order", porderbysup, "pono", "");
+
+                listbyporder = httpRequest("../items/listbyporder?porderId=" + JSON.parse(cmbPono.value).id, "GET");
+                fillCombo(cmbItem, "Select Item", listbyporder, "name", "");
+
+                txtGrnno.value = grnnote.grnno;
+                txtGrnno.disabled = "disabled";
+                txtTotalprice.value = grnnote.totalamount;
+                txtTotalprice.style.background=valid;
+                txtTotalprice.disabled="disabled";
+                dteDOCreated.value=grnnote.issuedate;
+                dteDOCreated.disabled="disabled";
+
+
+                fillCombo(cmbGrnstatus, "Select GRN Status", grnstatuses, "status","Done");
+                fillCombo(cmbEmployee, "", employees, "callingname", grnnote.employeeId.callingname);
+
+                refreshInnerForm();
+                disableButtons(true, false, false);
+                setStyle(valid);
+            }
+
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(grnnote!=null && oldgrnnote!=null) {
+
+                if (isEqual(grnnote.grnnoteitemList,oldgrnnote.grnnoteitemList,"itemId"))
+                    updates = updates + "\nItems are Changed";
+
+                if (grnnote.txtTotalprice != oldgrnnote.txtTotalprice)
+                    updates = updates + "\nTotalamount is Changed";
+
+                if (grnnote.grnno != oldgrnnote.grnno)
+                    updates = updates + "\nGRN no is Changed";
+
+                if (grnnote.issuedate != oldgrnnote.issuedate)
+                    updates = updates + "\nDate is Changed";
+
+                if (grnnote.employeeId.callingname != oldgrnnote.employeeId.callingname)
+                    updates = updates + "\nEmployee is Changed";
+
+                if (grnnote.grnstatusId.status != oldgrnnote.grnstatusId.status)
+                    updates = updates + "\ngrnnote status is Changed";
+
+
+                return updates;
+
+
+            }
+
+
+        }
+
+        function btnUpdateMC() {
+
+            var err = getErrors();
+            if (err == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if (option == true) {
+                        var response = httpRequest("/grns", "PUT", grnnote);
+                        if (response == "0") {
+                            toast("<strong>Success !</strong> Updated Successfully", "success");
+                            loadForm();
+                            loadView();   // loadSearchedTable();
+
+                        } else window.alert("Failed to Update as \n\n" + response);
+                    }
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+
+                        var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                            "Reg no : " +grnnote.grnno);
+
+                        if(option==true) {
+                            var response = httpRequest("/grns","DELETE",grnnote);
+                            if(response=="0"){
+                                toast("<strong>Success !</strong> Deleted Successfully","success");
+                                loadForm();
+                                loadSearchedTable();
+
+                            }
+                            else window.alert("Failed to Delete as \n\n"+response);
+                        }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable(){
+
+               var gno = txtSearchaGRNno.value.trim();
+               var grnstatus = cmbSearchgrnstatus.value;
+
+
+               var grnstatusid="";
+               if(grnstatus!="Status")
+               {  grnstatusid = JSON.parse(grnstatus).id;
+                   cmbSearchgrnstatus.style.background = active; }
+
+               if(gno!=""){  txtSearchaGRNno.style.background = active; }
+
+               var query ="&grnno=&statusid=";
+
+               if(gno!="" || grnstatusid!="" )
+                   query = "&grnno=" + gno + "&statusid=" + grnstatusid;
+
+
+               loadTable(activepage, cmbPageSize.value, query);
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+
+        function cmbItemMC() {
+
+            for (x in listbyporder) {
+                if (JSON.parse(cmbItem.value).id == listbyporder[x].id) {
+                    txtUnitprice.value = listbyporder[x].currentsalesprice + ".00";
+                }
+            }
+        }
+
+            function btnAddGRNMC() {
+
+                grnnoteitem = new Object();
+                grnnoteitem.itemId = JSON.parse(cmbItem.value);
+                if (isNaN(txtQuantity.value)) {
+                    txtQuantity.style.background = invalid;
+                } else {
+
+                    grnnoteitem.quantity = txtQuantity.value.trim();
+
+                    grnnoteitem.linetotal = txtUnitprice.value * grnnoteitem.quantity;
+                    txtTotalprice.disabled="disabled";
+
+                    grnnote.grnnoteitemList.push(grnnoteitem);
+                    //console.log(porder.porderitemList);
+                    refreshInnerForm();
+                }
+
+            }
+
+            function refreshInnerForm() {
+                  txtQuantity.value="";
+            txtQuantity.style.background = initial;
+            txtUnitprice.value="";
+
+                //cmbSupplierMC();
+
+
+                fillCombo(cmbItem,"select Items",listbyporder,"name","");
+
+            fillInnerTable("tblGRNItem",grnnote.grnnoteitemList,removeItem);
+
+
+            var total = 0;
+
+            for (index in grnnote.grnnoteitemList){
+                total = total + grnnote.grnnoteitemList[index].linetotal;
+            }
+
+            txtTotalprice.value = total + ".00";
+            txtTotalprice.style.background = valid;
+            grnnote.totalamount = txtTotalprice.value.trim();
+
+            }
+
+            function removeItem(grnnoteitemList, index) {
+                  grnnote.grnnoteitemList.splice(index-1,1);
+            refreshInnerForm();
+            }
+
+            function cmbSupplierMC() {
+                cmbPono.style.background = initial;
+                cmbSupplier.style.background = valid;
+                cmbPono.disabled = false;
+
+                porderbysup = httpRequest("../porders/porderbysup?supplierId=" + JSON.parse(cmbSupplier.value).id, "GET");
+                fillCombo(cmbPono, "Select Purchase Order", porderbysup, "pono", "");
+
+            }
+
+            function cmbPordernoMC() {
+                listbyporder = httpRequest("../items/listbyporder?porderId=" + JSON.parse(cmbPono.value).id, "GET");
+                fillCombo(cmbItem, "Select Item", listbyporder, "name", "");
+                cmbItem.style.background=valid;
+
+            }
+
+    </script>
+
+
+
+
+</head>
+<body style="height:1000px;">
+<div class="container-fluid" style="background-color: #0c5460">
+    <h3 style="color: #FFFFE3">GOODS RECIEVE NOTE MANAGEMENT</h3>
+    <ul class="nav nav-tabs">
+        <li class="active"><a data-toggle="tab" href="#AddGrn">Add GRN</a></li>
+        <li><a data-toggle="tab" href="#ViewGrn">View GRN</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="AddGrn" class="tab-pane fade in active">
+            <div class="row" id="ui">
+            <div class="col-md-12">
+                <div class="panel panel-primary" style="margin-top: 10px;">
+                    <div class="panel-body"   style="background-image: url('../image/station.jpg');background-repeat: no-repeat;background-size: 1100px 800px" >
+                        <div class="row">
+
+                            <div class="col-md-8 col-md-offset-2" id="form">
+                                <form class="form-horizontal" onsubmit="return false" id="grnform" >
+
+                        <script>
+
+                            // Defining UI-Componnets and Layouts
+                            // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+                            textField('grnform','txtGrnno','GRN number<span style="color:red;font-size:20px">*<span>','GRN number(TEFPxxxx)','',4,"",'grnnote','grnno','oldgrnnote');
+                            comboBox('grnform','cmbSupplier','Supplier<span style="color:red;font-size:20px">*<span>',4,'grnnote','supplierId','oldgrnnote');
+                            comboBox('grnform','cmbPono','Purchase Order no<span style="color:red;font-size:20px">*<span>',4,'grnnote','porderId','oldgrnnote');
+                            
+
+
+                        </script>
+                        <div id="innerform" style="background-color: rgba(0,0,0,0.1); padding: 20px 10px;margin-bottom:15px">
+                            <script>
+                                comboBox('innerform','cmbItem','Items<span style="color:red;font-size:20px">*<span>',4,'','','');
+                                textField('innerform','txtQuantity','Quantity<span style="color:red;font-size:20px">*<span>','quantity','',4,"",'','','');
+                                textField('innerform','txtUnitprice','Unitprice<span style="color:red;font-size:20px">*<span>','unitprice','',4,"",'','','');
+
+                            </script>
+                            <div class="text-right" style="margin-bottom: 10px">
+                                <input class="btn btn-primary btn-sm" type="button" id="btnAddGRN" value="Add" style=""/>
+                            </div>
+                            <div class="row">
+                                <div class="table-responsive col-md-12 " id="tableInnerParent">
+                                    <script>
+                                        var metadatainnertable = [
+                                            {name:'Item',search:false,datatype:'text',property:'itemId.name'},
+                                            {name:'Quantity',search:false,datatype:'text',property:'quantity'},
+                                            {name:'Unitprice',search:false,datatype:'text',property:'unitprice'},
+                                            {name:'Line Total',search:false,datatype:'text',property:'linetotal'},
+
+
+                                            //{name:'Line Total',search:false,datatype:'text',property:'linetotal'}
+                                        ];
+                                        tableForInnerForm("tableInnerParent","tblGRNItem",metadatainnertable,true);
+                                    </script>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <script>
+                            textField('grnform','txtTotalprice','Total Price<span style="color:red;font-size:20px">*<span>','Enter Total Price Here','',4,"",'grnnote','totalamount','oldgrnnote');
+                            comboBox('grnform','cmbGrnstatus','GRN status<span style="color:red;font-size:20px">*<span>',4,'grnnote','grnstatusId','oldgrnnote');
+                            comboBox('grnform','cmbEmployee','Created Employee<span style="color:red;font-size:20px">*<span>',4,'grnnote','employeeId','oldgrnnote');
+                            dateField('grnform','dteDOCreated','Created Date<span style="color:red;font-size:20px">*<span>','Select Created Date',4,"",'grnnote','date','oldgrnnote')
+
+
+
+                            // Custom UI-Componnets and Layouting
+
+                            //listTransfer('grnform','porderitem','Items',4,'grnnote','oldgrnnote','supplyList','itemId');
+
+
+
+
+
+                            //List-Transfer Functions
+
+
+
+                        </script>
+
+
+                        <div class="text-right">
+                            <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                            <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                            <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                            <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                        </div>
+
+
+
+                    </form>
+                </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+
+        <div id="ViewGrn" class="tab-pane fade ">
+
+
+                <div class="col-md-12" id="employeeview">
+
+                    <form class="form-inline" onsubmit="return false">
+                        <div class="form-group form-group-sm">
+                            <input placeholder="Search By Name" class="form-control" type="text" id="txtSearchaGRNno"/>
+                        </div>
+
+                        <div class="form-group form-group-sm">
+                            <select class="form-control" id="cmbSearchItem"></select>
+                        </div>
+                        <div class="form-group form-group-sm">
+                            <select class="form-control" id="cmbSearchgrnstatus"></select>
+                        </div>
+                        <input type="button" class="btn btn-warning btn-sm" value="Clear Search" id="btnSearchClear"/>
+                        <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                    </form>
+                    <hr/>
+
+
+                    <div class="table-responsive" id="tableParent">
+
+                        <script>
+
+
+                            /*function getItemsName(ob){
+                                var itemlist="";
+                                for(x in ob.porderitemList)
+                                    itemlist = itemlist +"," +ob.porderitemList[x].itemId.name
+                                return itemlist;
+                            }*/
+
+                            var metadata = [
+                                {name:'supplier',search:true,datatype:'text',property:'supplierId.company'},
+                                //{name:'Items',search:true,datatype:'text',property:getItemsName},
+                                {name:'Total',search:true,datatype:'text',property:'totalamount'},
+                                {name:'Status',search:true,datatype:'text',property:'grnstatusId.status'}
+                            ];
+
+                            table("tableParent","tblGrn",metadata,[3,10,15,30,500,1000],btnSearchMC);
+
+                        </script>
+
+                    </div>
+                    <ul id="pagination" class="pagination"></ul>
+                </div>
+        </div>
+        <!-- view eke div eka wahena thana -->
+
+
+    </div>
+    <!-- tab pane eke div eka wahena thana -->
+    <div id="err" style="display: none">
+        <h3>Error Log</h3>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.v1.js"></script>
+    <script src="../script/ui.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            cmbCustomer.addEventListener("change",cmbCustomerCH);
+            cmbItem.addEventListener("change",cmbItemCH);
+            cmbCusono.addEventListener("change",cmbCusonoCH);
+            btnAddInvoice.addEventListener("click",btnAddInvoiceMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+            txtPaid.addEventListener("change",txtPaidCH);
+            txtTotalprice.addEventListener("change",txtTotalpriceCH);
+
+            privilages = httpRequest("../privilages?module=invoice","GET");
+
+            regexes = httpRequest("../regexes/invoice","GET");
+
+            txtPaid.setAttribute("data-pattern",regexes.paidtotal.regex);
+
+            customers = httpRequest("../customers/list","GET");
+            invoicestatuses = httpRequest("../invoicestatuses/list","GET");
+            employees = httpRequest("../employees/list","GET");
+            corders = httpRequest("../corders/list","GET");
+
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+        }
+
+        function loadView() {
+
+            //Search Area
+            txtSearchinvoiceno.value="";
+             fillCombo(cmbSearchinvoicestatus,"Status",invoicestatuses,"status","");
+            cmbSearchinvoicestatus.style.background = "";
+            txtSearchinvoiceno.style.background = "";
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+             var query ="&invoiceno=&statusid=";
+            loadTable(1,cmbPageSize.value,query);
+        }
+
+        function loadTable(page,size,query) {
+             page = page - 1;
+            invoices = new Array();
+             var data = httpRequest("/invoices?page="+page+"&size="+size+query,"GET");
+             if(data.content!= undefined) invoices = data.content;
+             createPagination('pagination',data.totalPages, data.number+1,paginate);
+             fillTable('tblInvoice',invoices,fillForm);
+             clearSelection(tblInvoice);
+             if(activerowno!="")selectRow(tblInvoice,activerowno,active);
+             window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldinvoice==null){
+                paginate=true;
+            }else{
+                if(getupdates()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some updates or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno=""
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+        function loadForm() {
+
+            invoice = new Object();
+            oldinvoice = null;
+
+            invoice.invoiceitemList = new Array();
+
+            fillCombo(cmbCusono,"Select Customer Order No","","orderno","");
+            fillCombo(cmbCustomer,"Select Customer",customers,"name","");
+            fillCombo(cmbItem,"Select Items",'',"name","");
+            fillCombo(cmbEmployee,"Select Employee",employees,"callingname",session.getObject("user").employeeId.callingname);
+            fillCombo(cmbInvoicestatus,"Select Invoice Status",invoicestatuses,"status","Completed");
+            invoice.employeeId=JSON.parse(cmbEmployee.value);
+
+
+            invoicenumber = httpRequest("../invoices/invoiceno","GET");
+            txtInnum.value = invoicenumber.no;
+            invoice.invoiceno = txtInnum.value;
+            txtInnum.disabled = true;
+
+
+
+            invoice.invoicestatusId=JSON.parse(cmbInvoicestatus.value);
+            cmbInvoicestatus.disabled=true;
+
+
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var date = today.getDate();
+            if(date<10) date = "0"+date;
+
+            dteDOCreated.value=today.getFullYear()+"-"+month+"-"+date;
+            invoice.date= dteDOCreated.value;
+            dteDOCreated.disabled=true;
+
+
+            txtPaid.value="";
+            txtBalance.value="";
+
+
+            setStyle(initial);
+            txtInnum.style.background=valid;
+            cmbInvoicestatus.style.background=valid;
+            dteDOCreated.style.background=valid;
+            cmbEmployee.style.background=valid;
+            txtInnum.style.background=valid;
+
+            refreshInnerForm();
+
+            disableButtons(false, true, true);
+
+        }
+
+        function setStyle(style) {
+
+            txtInnum.style.background = style;
+            cmbCusono.style.background = style;
+            cmbCustomer.style.background = style;
+            cmbEmployee.style.background = style;
+            txtTotalprice.style.background = style;
+            txtPaid.style.background= style;
+            txtBalance.style.background= style;
+
+        }
+
+        function disableButtons(add, upd, del) {
+
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+
+        }
+
+
+        function getErrors() {
+
+                        var errors = "";
+
+                        if (invoice.invoiceitemList.length == 0)
+                            errors = errors + "\n" + "Items are not selected";
+
+                        if (invoice.invoiceno == null)
+                             errors = errors + "\n" + "Invoiceno is not selected";
+
+                        if (invoice.totalamount == null)
+                            errors = errors + "\n" + "Total amount is not selected";
+
+                        if (invoice.paidtotal == null)
+                            errors = errors + "\n" +  regexes.paidtotal.message;
+
+                        if (invoice.customerId == null)
+                            errors = errors + "\n" + "Customer is not selected";
+
+                        if(invoice.corderId == null)
+                            errors = errors + "\n" + "Customer orderno is not selected";
+
+                        if (invoice.employeeId == null)
+                            errors = errors + "\n" + "Employee is not selected" ;
+
+                        if (invoice.invoicestatusId == null)
+                            errors = errors + "\n" + "Status is not selected";
+
+                        if (invoice.date == null)
+                            errors = errors + "\n" + "Date is not selected";
+
+                        return errors;
+        }
+
+        function btnAddMC(){
+                        var errors = getErrors();
+
+                        if(errors==""){
+
+                             var invoiceitemlist="";
+                             for(x in invoice.invoiceitemList)
+                                 invoiceitemlist = invoiceitemlist + (invoiceitemlist==""?"":", ") +invoice.invoiceitemList[x].itemId.name
+
+                            var option = window.confirm("Are you sure to add following invoice ?\n" +
+                                "\nInvoice no : " + invoice.invoiceno +
+                                "\nCustomer: : " + invoice.customerId.name +
+                                "\nTotal amount : " + invoice.totalamount +
+                                "\nPaid amount : " + invoice.paidtotal +
+                                "\nBalance : " + invoice.totalbalance +
+                                "\nEmployee : " + invoice.employeeId.callingname +
+                                "\nInvoice Status : " + invoice.invoicestatusId.status +
+                                "\nDate : " + invoice.date +
+                                "\nEntered By : " + invoice.employeeId.callingname);
+
+
+                            if(option==true) {
+                                var response = httpRequest("/invoices","POST",invoice);
+                                if(response=="0"){
+                                    toast("<strong>Success !</strong> Saved Successfully","success");
+                                    loadForm();
+                                    activerowno = 1;
+                                    loadSearchedTable();
+                                }
+                                else window.alert("Failed to Add as \n\n"+response);
+                            }
+
+                        }
+                        else
+                        { window.alert("You have following updates\n"+errors); }
+        }
+
+        function btnClearMC() {
+
+            var clear;
+            if(oldinvoice==null){
+                clear=true;
+            }else{
+                if(getUpdates()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblInvoice);
+            }
+
+
+        }
+
+        function fillForm(poi,rowno){
+            activerowno = rowno;
+            var filling;
+            if(oldinvoice==null){
+                filling=true;
+            }else{
+
+                if(getUpdates()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some updates or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblInvoice);
+                selectRow(tblInvoice,activerowno,active);
+
+                invoice = JSON.parse(JSON.stringify(poi));
+                oldinvoice = JSON.parse(JSON.stringify(poi));
+
+                txtInnum.value = invoice.invoiceno;
+                txtInnum.disabled="disabled";
+                fillCombo(cmbInvoicestatus, "", invoicestatuses, "status", invoice.invoicestatusId.status);
+                fillCombo(cmbEmployee, "", employees, "callingname", invoice.employeeId.callingname);
+                fillCombo(cmbCustomer, "", customers, "name", invoice.customerId.name);
+
+                ordernobycus = httpRequest("/corders/ordernobycus?customerId=" + JSON.parse(cmbCustomer.value).id, "GET")
+                fillCombo(cmbCusono, "", ordernobycus, "orderno", invoice.corderId.orderno);
+
+                listbycorder = httpRequest("../items/listbycorder?corderId="+JSON.parse(cmbCusono.value).id,"GET");
+                fillCombo(cmbItem,"Select Item",listbycorder,"name","");
+
+
+                txtTotalprice.value=invoice.totalamount;
+                txtPaid.value=invoice.paidtotal;
+                txtBalance.value = invoice.totalbalance;
+
+
+                dteDOCreated.value = invoice.date;
+
+                refreshInnerForm();
+                disableButtons(true, false, false);
+                setStyle(valid);
+            }
+
+        }
+
+        function getUpdates() {
+
+               var updates = "";
+
+               if(invoice!=null && oldinvoice!=null) {
+
+                   if (isEqual(invoice.invoiceitemList,oldinvoice.invoiceitemList,"itemId"))
+                       updates = updates + "\nItems are Changed";
+
+                   if (invoice.invoiceno != oldinvoice.invoiceno)
+                       updates = updates + "\nIn is Changed";
+
+
+                   if (invoice.totalamount != oldinvoice.totalamount)
+                       updates = updates + "\nTotalprice is Changed";
+
+                   if (invoice.paidtotal != oldinvoice.paidtotal)
+                       updates = updates + "\nPaid amount is Changed";
+
+                   if (invoice.totalbalance != oldinvoice.totalbalance)
+                       updates = updates + "\nBalance is Changed";
+
+
+                   if (invoice.invoicestatusId.status != oldinvoice.invoicestatusId.status)
+                       updates = updates + "\ninvoice status is Changed";
+
+
+                   return updates;
+
+
+               }
+
+
+        }
+
+        function btnUpdateMC() {
+
+            var err = getErrors();
+            if (err == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/invoices","PUT",invoice);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadView();   // loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+                }}
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+
+                        var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                            "Invoice no : " +invoice.invoiceno);
+
+                        if(option==true) {
+                            var response = httpRequest("/invoices","DELETE",invoice);
+                            if(response=="0"){
+                                toast("<strong>Success !</strong> Deleted Successfully","success");
+                                loadForm();
+                                loadSearchedTable();
+
+                            }
+                            else window.alert("Failed to Delete as \n\n"+response);
+                        }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable(){
+
+               var invoiceno = txtSearchinvoiceno.value.trim();
+               var invoicestatus = cmbSearchinvoicestatus.value;
+
+               var invoicestatusid="";
+               if(invoicestatus!="Status")
+               {  invoicestatusid = JSON.parse(invoicestatus).id;
+                   cmbSearchinvoicestatus.style.background = active; }
+
+               if(invoiceno!=""){  txtSearchinvoiceno.style.background = active; }
+
+               var query ="&invoiceno=&statusid=";
+
+               if(invoiceno!="" || statusid!="" )
+                   query = "&invoiceno=" + invoiceno  + "&statusid=" + statusid;
+
+               window.alert(query);
+               loadTable(activepage, cmbPageSize.value, query);
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+
+        function cmbItemCH() {
+
+              for(x in listbycorder){
+                  if(JSON.parse(cmbItem.value).id == listbycorder[x].id){
+                      txtUnitprice.value = listbycorder[x].currentsalesprice+".00";
+
+                  }
+              }
+        }
+
+
+        function btnAddInvoiceMC() {
+
+            invoiceitem = new Object();
+            invoiceitem.itemId = JSON.parse(cmbItem.value);
+
+            if (isNaN(txtQuantity.value)) {
+                txtQuantity.style.background = invalid;
+            } else {
+
+                invoiceitem.quantity = txtQuantity.value.trim();
+
+
+                invoiceitem.linetotal = txtUnitprice.value * invoiceitem.quantity;
+                txtTotalprice.disabled="disabled";
+
+                invoice.invoiceitemList.push(invoiceitem);
+                //console.log( invoice.invoiceitemList);
+                refreshInnerForm();
+             }
+
+        }
+        function refreshInnerForm() {
+              txtQuantity.value="";
+              txtQuantity.style.background = initial;
+              txtUnitprice.value="";
+              cmbCustomerCH();
+
+              fillCombo(cmbItem,"select Items",listbycorder,"name","");
+
+              fillInnerTable("tblInvoiceItem",invoice.invoiceitemList,removeItem);
+
+
+              var total = 0;
+
+              for (index in invoice.invoiceitemList){
+                  total = total + invoice.invoiceitemList[index].linetotal;
+              }
+
+              txtTotalprice.value = total + ".00";
+            txtTotalprice.style.background = valid;
+            invoice.totalamount = txtTotalprice.value.trim();
+        }
+
+        function removeItem(invoiceitemList,index) {
+              invoice.invoiceitemList.splice(index-1,1);
+              refreshInnerForm();
+        }
+
+        function cmbCustomerCH(){
+            cmbCusono.style.background=valid;
+            cmbCustomer.style.background=valid;
+            cmbCusono.disabled=false;
+
+
+            ordernobycus = httpRequest("/corders/ordernobycus?customerId=" + JSON.parse(cmbCustomer.value).id, "GET")
+            fillCombo(cmbCusono,"Select Customer Order", ordernobycus, "orderno", "");
+
+        }
+
+        function cmbCusonoCH() {
+
+            listbycorder = httpRequest("../items/listbycorder?corderId="+JSON.parse(cmbCusono.value).id,"GET");
+            fillCombo(cmbItem,"Select Item",listbycorder,"name","");
+
+        }
+
+        function txtPaidCH() {
+
+            txtBalance.value = (parseInt(txtTotalprice.value)-parseInt(txtPaid.value)).toFixed(2);
+           invoice.totalbalance=  txtBalance.value;
+           txtBalance.style.background=valid;
+            txtBalance.disabled = "disabled";
+
+        }
+
+        function txtTotalpriceCH() {
+            if(txtTotalprice.value>"500000.00"){
+                txtTotalprice.style.background=invalid;
+            }
+        }
+    </script>
+
+
+
+
+</head>
+<body style="height:1000px;">
+<div class="container-fluid" style="background-color: #0c5460">
+    <h3 style="color: #FFFFE3">INVOICE MANAGEMENT</h3>
+    <ul class="nav nav-tabs">
+        <li class="active"><a data-toggle="tab" href="#AddInvoice">Add Invoice</a></li>
+        <li><a data-toggle="tab" href="#ViewInvoice">View Invoice</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="AddInvoice" class="tab-pane fade in active">
+            <div class="row" id="ui">
+                <div class="col-md-12">
+                    <div class="panel panel-primary" style="margin-top: 10px;">
+                        <div class="panel-body"   style="background-image: url('../image/station.jpg');background-repeat: no-repeat;background-size: 1100px 800px" >
+                            <div class="row">
+
+                                <div class="col-md-8 col-md-offset-2" id="form">
+                                <form class="form-horizontal" onsubmit="return false" id="invoiceform" >
+
+                                    <script>
+
+                                        // Defining UI-Componnets and Layouts
+                                        // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+                                        textField('invoiceform','txtInnum','Invoice number<span style="color:red;font-size:20px">*<span>','Invoice number(TEFPxxxx)','',4,"",'invoice','invoiceno','oldinvoice');
+                                        comboBox('invoiceform','cmbCustomer','Customer<span style="color:red;font-size:20px">*<span>',4,'invoice','customerId','oldinvoice');
+                                        comboBox('invoiceform','cmbCusono','Customer Order no<span style="color:red;font-size:20px">*<span>',4,'invoice','corderId','oldinvoice');
+
+
+
+                                    </script>
+                                    <div id="innerform" style="background-color: rgba(0,0,0,0.1); padding: 20px 10px;margin-bottom:15px">
+                                        <script>
+                                            comboBox('innerform','cmbItem','Items<span style="color:red;font-size:20px">*<span>',4,'','','');
+                                            textField('innerform','txtQuantity','Quantity<span style="color:red;font-size:20px">*<span>','Quantity','',4,"",'','','');
+                                            textField('innerform','txtUnitprice','Unitprice<span style="color:red;font-size:20px">*<span>','unitprice','',4,"",'','','');
+                                        </script>
+                                        <div class="text-right" style="margin-bottom: 10px">
+                                            <input class="btn btn-primary btn-sm" type="button" id="btnAddInvoice" value="Add" style=""/>
+                                        </div>
+                                        <div class="row">
+                                            <div class="table-responsive col-md-12 " id="tableInnerParent">
+                                                <script>
+                                                    var metadatainnertable = [
+                                                        {name:'Item',search:false,datatype:'text',property:'itemId.name'},
+                                                        {name:'Quantity',search:false,datatype:'text',property:'quantity'},
+                                                        {name:'Line Total',search:false,datatype:'text',property:'linetotal'}
+                                                    ];
+                                                    tableForInnerForm("tableInnerParent","tblInvoiceItem",metadatainnertable,true);
+                                                </script>
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                    <script>
+                                        textField('invoiceform','txtTotalprice','Total Price<span style="color:red;font-size:20px">*<span>','Enter Total Price Here','',4,"",'invoice','totalamount','oldinvoice');
+                                        textField('invoiceform','txtPaid','Paid Total<span style="color:red;font-size:20px">*<span>','Enter Paid Total Here','',4,"",'invoice','paidtotal','oldinvoice');
+                                        textField('invoiceform','txtBalance','Total Balance<span style="color:red;font-size:20px">*<span>','Enter Balance Here','',4,"",'invoice','totalbalance','oldinvoice');
+                                        comboBox('invoiceform','cmbInvoicestatus','Invoice status<span style="color:red;font-size:20px">*<span>',4,'invoice','invoicestatusId','oldinvoice');
+                                        comboBox('invoiceform','cmbEmployee','Created Employee<span style="color:red;font-size:20px">*<span>',4,'invoice','employeeId','oldinvoice');
+                                        dateField('invoiceform','dteDOCreated','Created Date<span style="color:red;font-size:20px">*<span>','Select Created Date',4,"",'invoice','date','oldinvoice')
+
+
+
+                                    </script>
+
+
+                                    <div class="text-right">
+                                        <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                                        <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                                        <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                                        <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                                    </div>
+
+
+
+                                </form>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ViewInvoice" class="tab-pane fade ">
+
+
+        <div class="col-md-12" id="employeeview">
+
+            <form class="form-inline" onsubmit="return false">
+                <div class="form-group form-group-sm">
+                    <input placeholder="Search By Name" class="form-control" type="text" id="txtSearchinvoiceno"/>
+                </div>
+
+                <div class="form-group form-group-sm">
+                    <select class="form-control" id="cmbSearchItem"></select>
+                </div>
+                <div class="form-group form-group-sm">
+                    <select class="form-control" id="cmbSearchinvoicestatus"></select>
+                </div>
+                <input type="button" class="btn btn-warning btn-sm" value="Clear Search" id="btnSearchClear"/>
+                <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+            </form>
+            <hr/>
+
+
+            <div class="table-responsive" id="tableParent">
+
+                <script>
+
+
+                    var metadata = [
+                        {name:'customer',search:true,datatype:'text',property:'customerId.name'},
+                        {name:'Invoiceno',search:true,datatype:'text',property:'invoiceno'},
+                        //{name:'Items',search:true,datatype:'text',property:getItemsName},
+                        {name:'Total',search:true,datatype:'text',property:'totalamount'},
+                        {name:'Status',search:true,datatype:'text',property:'invoicestatusId.status'}
+                    ];
+
+                    table("tableParent","tblInvoice",metadata,[3,10,15,30,500,1000],btnSearchMC);
+
+                </script>
+
+            </div>
+            <ul id="pagination" class="pagination"></ul>
+        </div>
+    </div>
+    <!-- view eke div eka wahena thana -->
+
+
+</div>
+<!-- tab pane eke div eka wahena thana -->
+<div id="err" style="display: none">
+    <h3>Error Log</h3>
+</div>
+</div>
+
+</body>
+</html>

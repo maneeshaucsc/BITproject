@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <title>Earth University College : BIT Final Project</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.bitproject.earth.lk.v1.js"></script>
+    <script src="../script/ui.bitproject.earth.lk.v1.js"></script>
+
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        function initialize() {
+            spnUsername.innerHTML = " "+session.getObject("user").employeeId.fullname;
+            laodUi("home");
+
+        }
+
+        function laodUi(ui) {
+            frmMainWindow.src = 'http://localhost:8080/ui/' + ui;
+        }
+
+        function changePassword() {
+            if (window.confirm("Do you need to change the Password ?")) {
+                cookie.setValue("username", "", 1);
+                cookie.setValue("password", "", 1);
+                session.setObject("user", new Object());
+                window.open("changepassword", "_self");
+            }
+        }
+
+
+        function logout() {
+            if(window.confirm("Do you need to logout ?")) {
+
+
+                ajax = new XMLHttpRequest();
+                ajax.open("PUT", "/session", false);
+                // ajax.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                ajax.send();
+                err.innerHTML=err.innerHTML+ajax.responseText;
+                if(ajax.status==200 && ajax.responseText!="") {
+                    responce = ajax.responseText;
+                    cookie.setValue("username", "", 1);
+                    cookie.setValue("password", "", 1);
+                    session.setObject("user", new Object());
+                    window.alert(responce);
+
+                    window.open("login", "_self");
+                }
+                else
+                    window.alert("Failed to logout");
+
+
+            }
+        }
+
+        $(document).ready(function () {
+            $('ul.nav li.dropdown').hover(function () {
+                $(this).find('.dropdown-menu').stop(true, true).delay(200).fadeIn(10);
+            }, function () {
+                $(this).find('.dropdown-menu').stop(true, true).delay(200).fadeOut(10);
+            });
+        });
+
+
+    </script>
+
+
+</head>
+<body>
+
+
+<nav class="navbar navbar-inverse" style="border-radius: 0 !important; margin-bottom: 0px;">
+    <div class="container-fluid">
+
+        <div class="navbar-header">
+            <img style="margin:0 50px 0 15px;" height="50" src="../image/earthuniversity.jpg"/>
+        </div>
+
+        <ul class="nav navbar-nav">
+
+            <li onclick="laodUi('home')" class="active"><a href="#">Home</a></li>
+
+            <li class="dropdown">
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#">Admin<span class="caret"></span></a>
+                <ul class="dropdown-menu">
+                    <li onclick="laodUi('employee')"><a>Employee</a></li>
+                    <li onclick="laodUi('user')"><a>User</a></li>
+                    <li onclick="laodUi('previlage')"><a>Privilages</a></li>
+                    <li onclick="laodUi('designation')"><a>Designation</a></li>
+                    <li onclick="laodUi('gender')"><a>Gender</a></li>
+                    <li onclick="laodUi('civilstatus')"><a>Civilstatus</a></li>
+                    <li onclick="laodUi('employeestatus')"><a>Employeestatus</a></li>
+                    <li onclick="laodUi('userstatus')"><a>Userstatus</a></li>
+                </ul>
+            </li>
+
+            <li class="dropdown">
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#">Fuel<span class="caret"></span></a>
+                <ul class="dropdown-menu">
+                    <li onclick="laodUi('fuel')"><a>Fuel</a></li>
+                    <li onclick="laodUi('brand')"><a>Brand</a></li>
+                    <li onclick="laodUi('category')"><a>Category</a></li>
+                    <li onclick="laodUi('subcategory')"><a>Subcategory</a></li>
+                    <li onclick="laodUi('fuelstatus')"><a>Fuelstatus</a></li>
+                    <li onclick="laodUi('purchasingtype')"><a>Purchasingtype</a></li>
+                    <li onclick="laodUi('meter')"><a>Meter</a></li>
+                    <li onclick="laodUi('tank')"><a>Tank</a></li>
+                    <li onclick="laodUi('unittype')"><a>Unittype</a></li>
+                </ul>
+            </li>
+
+            <li class="dropdown">
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#">Purchase<span class="caret"></span></a>
+                <ul class="dropdown-menu">
+                    <li onclick="laodUi('purchaseoder')"><a>Purchase Order</a></li>
+                    <li onclick="laodUi('grn')"><a>GRN</a></li>
+                    <li onclick="laodUi('supplier')"><a>Supplier</a></li>
+                </ul>
+            </li>
+
+        </ul>
+
+        <ul class="nav navbar-nav navbar-right">
+            <li><a href="#"> <span class="glyphicon glyphicon-user"> </span> <span id="spnUsername"> User </span> </a></li>
+            <li onclick="changePassword()"><a href="#"> <span class="glyphicon glyphicon-lock"> </span> Change Password </a></li>
+            <li onclick="logout()"><a href="#"> <span class="glyphicon glyphicon-log-out"> </span> Logout </a></li>
+        </ul>
+
+    </div>
+</nav>
+
+
+
+<iframe id="frmMainWindow" style="width:100%;height:605px;border:0;"></iframe>
+
+<div id="err"></div>
+
+
+</body>
+</html>

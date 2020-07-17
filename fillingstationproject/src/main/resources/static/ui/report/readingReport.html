@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<html>
+<head>
+
+    <link rel="stylesheet" href="../../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../../plugin/jquery/jquery.min.js"></script>
+    <script src="../../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../../script/common.v1.js"></script>
+    <script src="../../script/ui.v1.js"></script>
+
+
+    <!--Load the AJAX API-->
+        <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+        <script type="text/javascript">
+
+        window.addEventListener("load", initialize);
+
+        function initialize(){
+            btnGenarateReport.addEventListener("click",btnGenarateReportMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnPrintTable.addEventListener("click",btnPrintTableMC);
+
+            colors = ["red","green","blue","orange","yellow","cyan","magenta","gray","gold","purple"];
+
+
+        }
+
+        function loadReports() {
+            var columns = [{type:"string",name:"Code"},{type:"number",name:"Fuel Amount"},{type:"currency",name:"Income"},{type:"string",name:"Date"}];
+            drawReportTable('tbl',serverdata,columns);
+
+
+
+        }
+
+
+        function btnGenarateReportMC(){
+            var startdate = dteStart.value;
+            var enddate = dteEnd.value;
+            var meter = txtMeter.value;
+            if(startdate!="" && enddate!="" && meter!="") {
+                serverdata = httpRequest("../../reports/readingReport?startdate=" + startdate + "&enddate=" + enddate + "&meter=" + meter, "GET");
+                loadReports();
+            }
+        }
+
+        function btnClearMC() {
+           // serverdata=httpRequest("../../reports/systemaccessanalysis","GET");
+            dteStart.value="";
+            dteEnd.value="";
+            txtMeter.value="";
+            loadReports();
+        }
+
+
+        function btnPrintTableMC() {
+            printDiv("tableview",370,370,400,);
+        }
+
+        function btnPrintPiechartMC() {
+            //printDiv("piechartview",800,800,400,"../../image/sampleitem.jpg");
+        }
+
+        function btnPrintAllReportMC() {
+           // printDiv("allreport",800,800,400,"../../image/sampleitem.jpg");
+        }
+
+    </script>
+
+
+
+</head>
+
+<body style="height:1000px;">
+
+
+<div class="container-fluid">
+    <div class="row" id="ui">
+        <div class="col-md-12">
+            <div class="panel panel-primary" style="margin-top: 10px;">
+                <div class="panel-heading">
+                    <h3>Daily Meter Reading Report</h3>
+                </div>
+
+                <div class="panel-body" >
+
+                    <div class="row">
+
+                        <div class="col-md-12" id="ondemandcriteria">
+                            <form class="form-inline" onsubmit="return false">
+                                <div class="form-group form-group-sm">
+                                    <input placeholder="Start Date" class="form-control" type="date" id="dteStart"/>
+                                </div>
+                                <div class="form-group form-group-sm">
+                                    <input placeholder="End Date" class="form-control" type="date" id="dteEnd"/>
+                                </div>
+
+                                <div class="form-group form-group-sm">
+                                    <input placeholder="Meter" class="form-control" type="text" id="txtMeter"/>
+                                </div>
+
+                                <input type="button" class="btn btn-warning btn-sm" value="Clear" id="btnClear"/>
+                                <input type="button" class="btn btn-success btn-sm" value="Genarate Report" id="btnGenarateReport"/>
+
+                                <div class="text-right" style="margin-top: 10px;">
+                                    <button class="btn btn-primary btn-sm"  id="btnPrintTable" > <span class="glyphicon glyphicon-print"> </span> Print Table  </button>
+                                </div>
+
+                            </form>
+                        </div>
+
+                    </div>
+
+                    <div class="row" style="height: 50px;">
+                    </div>
+
+                    <div class="row" id="allreport">
+                        <div class="col-md-2" ></div>
+                        <div class="col-md-8" id="tableview"> <h2>Daily Meter Reading Report</h2> <hr/> <div id="tbl"></div>   </div>
+                        <div class="col-md-2" ></div>
+
+
+                    </div>
+
+                </div>
+
+                <div class="panel-footer">
+                    <div id="err" style="display: none">
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
+</body>
+</html>

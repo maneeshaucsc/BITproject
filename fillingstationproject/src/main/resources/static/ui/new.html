@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Dissanayake Filling Station</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+  <link href="../plugin/bootstrap/fonts/font-awesome.css" rel="stylesheet" />
+  <script src="../script/common.v1.js"></script>
+  <script src="../script/ui.v1.js"></script>
+
+  <script>
+
+    window.addEventListener("load", initialize);
+
+    function initialize() {
+      spnUsername.innerHTML = " "+session.getObject("user").employeeId.fullname;
+      laodUi("home");
+
+    }
+
+    function laodUi(ui) {
+      frmMainWindow.src = 'http://localhost:8080/ui/' + ui;
+    }
+    function laodUiReport(ui) {
+      frmMainWindow.src = 'http://localhost:8080/ui/report/' + ui;
+    }
+
+    function changePassword() {
+      if (window.confirm("Do you need to change the Password ?")) {
+        cookie.setValue("username", "", 1);
+        cookie.setValue("password", "", 1);
+        session.setObject("user", new Object());
+        window.open("changepassword", "_self");
+      }
+    }
+
+
+    function logout() {
+      if(window.confirm("Do you need to logout ?")) {
+
+
+        ajax = new XMLHttpRequest();
+        ajax.open("PUT", "/session", false);
+        // ajax.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        ajax.send();
+        err.innerHTML=err.innerHTML+ajax.responseText;
+        if(ajax.status==200 && ajax.responseText!="") {
+          responce = ajax.responseText;
+          cookie.setValue("username", "", 1);
+          cookie.setValue("password", "", 1);
+          session.setObject("user", new Object());
+          window.alert(responce);
+
+          window.open("login", "_self");
+        }
+        else
+          window.alert("Failed to logout");
+
+
+      }
+    }
+
+    function resizeIframe(obj) {
+      obj.style.height = obj.contentWindow.document.body.scrollHeight + 'px';
+    }
+
+    $(document).ready(function () {
+         $('ul.nav li.dropdown').hover(function () {
+             $(this).find('.dropdown-menu').stop(true, true).delay(200).fadeIn(10);
+         }, function () {
+             $(this).find('.dropdown-menu').stop(true, true).delay(200).fadeOut(10);
+         });
+    });
+
+  </script>
+  <style>
+body {
+  font-family: "Lato", sans-serif;
+}
+
+.sidenav {
+  height: 100%;
+  width: 200px;
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  background-color: #111;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-top: 20px;
+  margin-top: 45px;
+  
+}
+
+.sidenav a {
+  padding: 6px 8px 6px 16px;
+  text-decoration: none;
+  font-size: 18px;
+  color: #818181;
+  display: block;
+}
+
+.sidenav a:hover {
+  color: #f1f1f1;
+}
+
+.main {
+  margin-left: 200px; /* Same as the width of the sidenav */
+  font-size: 28px; /* Increased text to enable scrolling */
+  /*padding: 0px 10px;*/
+ margin-top: 45px;
+}
+
+@media screen and (max-height: 450px) {
+  .sidenav {padding-top: 15px;}
+  .sidenav a {font-size: 18px;}
+}
+    .panel, .panel li {background-color: black;
+    color: whitesmoke;}
+    .panel li:hover{background-color: #0c5460;
+    color: #e8e8e8;}
+</style>
+ 
+</head>
+<body>
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-lg-12">
+      <nav class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container-fluid">
+          <div class="navbar-header">
+            <img class="img img-rounded" src="../image/final2.png" style="width: 200px; height: 50px;">
+          </div>
+          <ul class="nav navbar-nav navbar-right">
+            <p class="navbar-text"><span id="spnUsername"> User</span></p>
+            <li onclick="changePassword()"><a href="../ui/changepassword.html"><span class="glyphicon glyphicon-user"></span>Change Password</a></li>
+            <li  onclick="logout()"><a href="#"><span class="glyphicon glyphicon-log-in"></span>Log out</a></li>
+          </ul>
+        </div>
+      </nav>
+  
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-lg-2 ">
+    <div class="sidenav">
+      <div class="panel-group" id="accordion">
+        <div class="panel">
+          <div class="panel-heading">
+            <h4 class="panel-title">
+              <a data-toggle="collapse" href="#collapse1">Employee</a>
+            </h4>
+          </div>
+          <div id="collapse1" class="panel-collapse collapse">
+            <ul class="list-group">
+              <li onclick="laodUi('employee')" class="list-group-item">Employee</li>
+              <li onclick="laodUi('user')" class="list-group-item">User</li>
+              <li onclick="laodUi('previlage')" class="list-group-item">Previlage</li>
+              <li onclick="laodUi('designation')" class="list-group-item">Designation</li>
+            </ul>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-heading">
+            <h4 class="panel-title">
+              <a data-toggle="collapse" href="#collapse2">Fuel</a>
+            </h4>
+          </div>
+          <div id="collapse2" class="panel-collapse collapse">
+            <ul class="list-group">
+              <li onclick="laodUi('item')" class="list-group-item">Item</li>
+              <li onclick="laodUi('brand')" class="list-group-item">Brand</li>
+              <li onclick="laodUi('itemtype')" class="list-group-item">Itemtype</li>
+              <li onclick="laodUi('category')" class="list-group-item">Category</li>
+              <li onclick="laodUi('subcategory')" class="list-group-item">Subcategory</li>
+              <li onclick="laodUi('unitamount')" class="list-group-item">Unitamount</li>
+
+            </ul>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-heading">
+            <h4 class="panel-title">
+              <a data-toggle="collapse" href="#collapse3">Supplier</a>
+            </h4>
+          </div>
+          <div id="collapse3" class="panel-collapse collapse">
+            <ul class="list-group">
+              <li onclick="laodUi('supplier')" class="list-group-item">Supplier</li>
+              <li onclick="laodUi('porder')" class="list-group-item">Purchase order</li>
+              <li onclick="laodUi('grn')" class="list-group-item">GRN</li>
+            </ul>
+          </div>
+        </div>
+
+      <div class="panel">
+        <div class="panel-heading">
+          <h4 class="panel-title">
+            <a data-toggle="collapse" href="#collapse4">Customer</a>
+          </h4>
+        </div>
+        <div id="collapse4" class="panel-collapse collapse">
+          <ul class="list-group">
+            <li onclick="laodUi('customer')" class="list-group-item">Customer</li>
+            <li onclick="laodUi('corder')" class="list-group-item">Customer Order</li>
+            <li onclick="laodUi('invoice')" class="list-group-item">Invoice</li>
+          </ul>
+        </div>
+      </div>
+
+    <div class="panel">
+      <div class="panel-heading">
+        <h4 class="panel-title">
+          <a data-toggle="collapse" href="#collapse5">Payments</a>
+        </h4>
+      </div>
+      <div id="collapse5" class="panel-collapse collapse">
+        <ul class="list-group">
+          <li onclick="laodUi('suppayment')" class="list-group-item">Supplier Payment</li>
+          <li onclick="laodUi('chepayment')" class="list-group-item">Cheque Payment</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-heading">
+          <h4 class="panel-title">
+            <a data-toggle="collapse" href="#collapse6">Fuel Consumption</a>
+          </h4>
+        </div>
+      <div id="collapse6" class="panel-collapse collapse">
+        <ul class="list-group">
+          <li onclick="laodUi('reading')" class="list-group-item">Meter Reading</li>
+          <li onclick="laodUi('measurement')" class="list-group-item">Tank Measurement</li>
+        </ul>
+      </div>
+    </div>
+      <div class="panel">
+        <div class="panel-heading">
+          <h4 class="panel-title">
+            <a data-toggle="collapse" href="#collapse7">Reports</a>
+          </h4>
+        </div>
+        <div id="collapse7" class="panel-collapse collapse">
+          <ul class="list-group">
+            <li onclick="laodUiReport('systemaccessanalysis')" class="list-group-item">systemaccessanalysis report</li>
+            <li onclick="laodUiReport('suppliersreport')" class="list-group-item">Suppliers Report</li>
+            <li onclick="laodUiReport('readingReport')" class="list-group-item">Reading report</li>
+          </ul>
+        </div>
+      </div>
+      </div>
+  </div>
+    </div>
+  </div>
+
+    </div>
+    </div>
+
+<div class="col-lg-12">
+  <div class="main">
+    <iframe id="frmMainWindow" style="width:100%; height:605px; margin: 0px;" frameborder="0" onload="resizeIframe(this)"
+                 scrolling="no"> </iframe>
+  </div>
+</div>
+
+
+</div>
+
+</div>
+
+<div id="err"></div>
+
+</body>
+</html>

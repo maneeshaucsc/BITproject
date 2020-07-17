@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fuelstatus</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.bitproject.earth.lk.v1.js"></script>
+    <script src="../script/ui.bitproject.earth.lk.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+
+            /*privilages = httpRequest("../privilages?module=DESIGNATION","GET");
+            regexes = httpRequest("../regexes/fuelstatus","GET");
+            txtStatus.setAttribute("data-pattern",regexes.name.regex);*/
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+
+
+        }
+
+        function loadView() {
+            //Search Area
+            txtSearchStatus.value="";
+            txtSearchStatus.style.background = "";
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            loadTable(1,cmbPageSize.value,"&status=");
+
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            users = new Array();
+            var data =  httpRequest("/fuelstatuses?page="+page+"&size="+size+query,"GET");
+            fuelstatuses = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblFuelstatus',fuelstatuses,fillForm);
+            clearSelection(tblFuelstatus);
+            if(activerowno!="")selectRow(tblFuelstatus,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldfuelstatus==null){
+                paginate=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno=""
+                loadSearchedTable();
+                loadForm();
+            }
+
+        }
+
+        function loadForm() {
+
+            fuelstatus = new Object();
+            oldfuelstatus = null;
+
+            txtStatus.value = "";
+
+            setStyle(initial);
+            disableButtons(false, true, true);
+
+        }
+
+        function setStyle(style) {
+
+            txtStatus.style.background = style;
+
+
+        }
+
+        function disableButtons(add, upd, del) {
+
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+        }
+
+
+        // Binding and Validation Functions for Non-Regex-Based
+        // When Regex-Based default validation is used, programmers do not need to define these functions
+        // Default Validation and Binding is coded in "ui.bitproject.earth.lk.js"
+
+
+
+
+        //Form Operation Functions
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (fuelstatus.status == null)
+                errors = errors + "\n" + "fuelstatus Name is Empty";
+
+            return errors;
+
+        }
+
+        function btnAddMC(){
+
+            var errors = getErrors();
+
+            if(errors==""){
+
+                var option = window.confirm("Are you sure to add following Designation ?\n" +
+                    "\nfuelstatus Name : " + fuelstatus.status );
+                if(option==true) {
+                    var response = httpRequest("/fuelstatuses","POST",fuelstatus);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following Errors\n"+errors); }
+
+        }
+
+        function btnClearMC() {
+            //Get Cofirmation from the User window.confirm();
+
+            var clear;
+            if(oldfuelstatus==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblFuelstatus);
+            }
+
+
+
+
+        }
+
+        function fillForm(fst,rowno){
+            activerowno = rowno;
+            var filling;
+            if(oldfuelstatus==null){
+                filling=true;
+            }else{
+
+                if(getErrors()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblFuelstatus);
+                selectRow(tblFuelstatus,activerowno,active);
+
+                fuelstatus = JSON.parse(JSON.stringify(fst));
+                oldfuelstatus = JSON.parse(JSON.stringify(fst));
+
+                txtStatus.value = fuelstatus.status;
+                disableButtons(true, false, false);
+                setStyle(valid);
+            }
+
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(fuelstatus!=null && oldfuelstatus!=null) {
+
+
+                if (fuelstatus.status != oldfuelstatus.status)
+                    updates = updates + "\nfuelstatus Name is Changed";
+
+
+            }
+
+            return updates;
+
+        }
+
+        function btnUpdateMC() {
+            var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/fuelstatuses","PUT",fuelstatus);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+
+
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+
+            var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Status : " +fuelstatus.status);
+
+            if(option==true) {
+                var response = httpRequest("/fuelstatuses","DELETE",fuelstatus);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    loadForm();
+                    loadSearchedTable();
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable(){
+
+            var status = txtSearchStatus.value.trim();
+
+            if(status!=""){  txtSearchStatus.style.background = active; }
+
+            var query ="&status=";
+
+            if(status!="" )
+                query = "&status=" + name ;
+
+            //window.alert(query);
+            loadTable(activepage, cmbPageSize.value, query);
+
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+
+    </script>
+
+
+
+
+</head>
+<body>
+<div class="container-fluid">
+    <div class="row" id="ui">
+        <div class="col-md-12">
+            <div class="panel panel-primary" style="margin-top: 10px;">
+                <div class="panel-heading">
+                    <h3>Fuelstatus Management</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="row">
+
+                        <div class="col-md-4" id="form">
+                            <form class="form-horizontal" onsubmit="return false" id="fuelstatusform" >
+
+                                <script>
+
+                                    // Defining UI-Componnets and Layouts
+                                    // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+
+                                    textField('fuelstatusform','txtStatus','Status','Enter Status  Here','',4,"",'fuelstatus','status','oldfuelstatus');
+
+
+                                    // Custom UI-Componnets and Layouting
+
+                                </script>
+
+
+
+
+                                <div class="text-right">
+                                    <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                                    <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                                    <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                                    <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                                </div>
+
+
+                            </form>
+                        </div>
+
+                        <div class="col-md-1"></div>
+                        <div class="col-md-4" id="fuelstatusview">
+
+                            <form class="form-inline" onsubmit="return false">
+                                <div class="form-group form-group-sm">
+                                    <input placeholder="Search By Status" class="form-control" type="text" id="txtSearchStatus"/>
+                                </div>
+
+
+                                <input type="button" class="btn btn-warning btn-sm" value="Clear Search" id="btnSearchClear"/>
+                                <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                            </form>
+                            <hr/>
+
+
+                            <div class="table-responsive" id="tableParent">
+
+                                <script>
+
+
+
+                                    var metadata = [
+
+                                        {status:'Status',search:true,datatype:'text',property:'status'},
+
+                                    ];
+
+                                    table("tableParent","tblFuelstatus",metadata,[3,10,15,30,500,1000],btnSearchMC);
+
+                                </script>
+
+
+                            </div>
+                            <ul id="pagination" class="pagination"></ul>
+
+                        </div>
+                        <div class="col-md-3"></div>
+                    </div>
+                </div>
+
+                <div class="panel-footer"><div id="err"><h3>Error Log</h3></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

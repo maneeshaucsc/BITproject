@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Home</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <script type="text/javascript" href="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script type="text/javascript" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+    <!--<link rel="stylesheet" href="../plugin/font-awesome/css/all.css">-->
+
+ <!--    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css">
+     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+   <script type="text/javascript">
+      google.charts.load('current', {'packages':['gauge']});
+      google.charts.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+
+        var data = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['Memory', 80],
+          ['CPU', 55],
+          ['Network', 68]
+        ]);
+
+        var options = {
+          width: 500, height: 120,
+          redFrom: 90, redTo: 100,
+          yellowFrom:75, yellowTo: 90,
+          minorTicks: 5
+        };
+
+        var chart = new google.visualization.Gauge(document.getElementById('chart_div'));
+
+
+        chart.draw(data, options);
+
+        setInterval(function() {
+          data.setValue(0, 1, 40 + Math.round(60 * Math.random()));
+          chart.draw(data, options);
+        }, 13000);
+        setInterval(function() {
+          data.setValue(1, 1, 40 + Math.round(60 * Math.random()));
+          chart.draw(data, options);
+        }, 5000);
+        setInterval(function() {
+          data.setValue(2, 1, 60 + Math.round(20 * Math.random()));
+          chart.draw(data, options);
+        }, 26000);
+      }
+       google.charts.load('current', {'packages':['gauge']});
+      google.charts.setOnLoadCallback(drawChart1);
+
+       function drawChart1() {
+
+        var data = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['Memory', 80],
+          ['CPU', 55],
+          ['Network', 68]
+        ]);
+
+        var options = {
+          width:500, height: 120,
+          redFrom: 90, redTo: 100,
+          yellowFrom:75, yellowTo: 90,
+          minorTicks: 5
+        };
+
+        var chart = new google.visualization.Gauge(document.getElementById('chart_div1'));
+       
+
+        chart.draw(data, options);
+
+        setInterval(function() {
+          data.setValue(0, 1, 40 + Math.round(60 * Math.random()));
+          chart.draw(data, options);
+        }, 13000);
+        setInterval(function() {
+          data.setValue(1, 1, 40 + Math.round(60 * Math.random()));
+          chart.draw(data, options);
+        }, 5000);
+        setInterval(function() {
+          data.setValue(2, 1, 60 + Math.round(20 * Math.random()));
+          chart.draw(data, options);
+        }, 26000);
+      }
+
+    </script>
+
+    <style type="text/css">
+        body{
+            /*background:url('../image/home.jpg');*/
+            background-size: 100% 100%;
+            overflow-x: auto;
+
+        }
+        /*div{border: dotted;}*/
+
+        .card-body-icon {
+            position: absolute;
+            z-index: 0;
+            top: -25px;
+            right: -25px;
+            font-size: 5rem;
+            -webkit-transform: rotate(15deg);
+            -ms-transform: rotate(15deg);
+            transform: rotate(15deg); }
+
+        .o-hidden {
+            overflow: hidden !important; }
+
+        .z-1 {
+            z-index: 1; }
+
+    </style>
+
+
+
+
+
+
+
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-xl-12 col-lg-12 col-md-12 col-sm-12  mb-3">
+            <div class="card bg-light text-dark">
+                <div class="card-body">
+                    <h4 class="text-center">WELCOME TO DISSANAYAKE FILLING STATION</h4>
+                </div>
+            </div>
+        </div>
+
+
+
+    </div>
+
+    <!-- Icon Cards-->
+    <div class="row">
+        <div class="col-md-2 mb-2">
+            <div class="card text-white bg-primary o-hidden w-100 p-2">
+                <div class="card-body">
+                  
+                <div class="card-body-icon mx-3">
+                        <i class="fa fa-fw fa-user-plus fa-xs"></i>
+                    </div>
+                    <div class="font-weight-bold"> <a href="customer.html" style="text-decoration: none; color: white;">CUSTOMERS</a></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-2">
+            <div class="card text-white bg-warning o-hidden w-100 p-2">
+                <div class="card-body">
+                  
+                <div class="card-body-icon mx-5">
+                        <i class="fa fa-fw fa-gas-pump fa-xs"></i>
+
+                    </div>
+                    <div class="font-weight-bold"> <a href="loan.html" style="text-decoration: none; color: white;">FUEL CONSUMPTION</a></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 mb-2">
+            <div class="card text-white bg-dark o-hidden w-100 p-2">
+                <div class="card-body">
+                  
+                <div class="card-body-icon mx-5">
+                        <i class="fas fa-fw fa-coins fa-xs"></i>
+                    </div>
+                    <div class="font-weight-bold"> <a href="item.html" style="text-decoration: none; color: white;">ITEMS</a></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-2">
+            <div class="card text-white bg-success o-hidden w-100 p-2">
+                <div class="card-body">
+                  
+                <div class="card-body-icon mx-5">
+                         <i class="fas fa-fw fa-clipboard-list fa-xs"></i>
+                    </div>
+                    <div class="font-weight-bold"> <a href="corder.html" style="text-decoration: none; color: white;">CUSTOMER ORDERS</a></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 mb-2">
+            <div class="card text-white bg-danger o-hidden w-100 p-2">
+                <div class="card-body">
+                  
+                <div class="card-body-icon mx-5">
+                        <i class="fas fa-fw fa-chart-bar fa-xs"></i>
+                    </div>
+                    <div class="font-weight-bold"> <a href="report.html" style="text-decoration: none; color: white;">REPORTS</a></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Icons row 2 -->
+       <div class="row">
+        <div class="col-md-4 mb-3">
+            <div class="card text-white bg-danger o-hidden w-100 p-2">
+                <div class="card-body">
+                  
+                <div class="card-body-icon mx-3">
+                        <i class="fa fa-fw fa-users fa-xs"></i>
+                    </div>
+                    <div class="font-weight-bold"> <a href="supplier.html" style="text-decoration: none; color: white;">SUPPLIERS</a></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 mb-3">
+            <div class="card text-white bg-success o-hidden w-100 p-2">
+                <div class="card-body">
+                  
+                <div class="card-body-icon mx-5">
+                        <i class="fas fa-fw fa-tachometer-alt fa-xs"></i>
+                    </div>
+                    <div class="font-weight-bold"> <a href="meter.html" style="text-decoration: none; color: white;">METERS</a></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 mb-3">
+            <div class="card text-white bg-info o-hidden w-100 p-2">
+                <div class="card-body">
+                  
+                <div class="card-body-icon mx-5">
+                        <i class="fa fa-fw fa-burn fa-xs"></i>
+                    </div>
+                    <div class="font-weight-bold"> <a href="tank.html" style="text-decoration: none; color: white;">TANKS</a></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card text-white bg-secondary o-hidden w-100 p-2">
+                <div class="card-body">
+                  
+                <div class="card-body-icon mx-5">
+                        <i class="fas fa-list fa-xs"></i>
+                    </div>
+                    <div class="font-weight-bold"> <a href="porder.html" style="text-decoration: none; color: white;">PURCHASE ORDER</a></div>
+                </div>
+            </div>
+        </div>  
+    </div>  
+    <div class="row ">
+    	<div class="col-md-6 col-md-offset-1">
+    		   <div id="chart_div" style="width: 280px; height: 120px;"></div>
+    	</div>
+    	<div class="col-md-6 col-md-offset-1">
+    		<div id="chart_div1" style="width: 280px; height: 120px;"></div>
+    	</div>
+<!--    	<div class="col-md-3 mx-4">-->
+<!--    		<div id="chart_div2" style="width: 280px; height: 120px;"></div>-->
+<!--    	</div>-->
+    	
+    </div>
+    <div class="row ">
+    	<div class="col-md-12">
+    		<div class="row">
+    			<div class="col-md-6">
+    				<div class="card mx-3">
+    					<div class="card-body bg-light">
+    						  <div class="font-weight-bold">  <i class="fas fa-user-plus fa-xs"></i><a href="customer.html" style="color: black;"> CUSTOMERS</a></div>
+    					</div>
+    				</div>
+    			</div>
+    			<div class="col-md-6">
+    				<div class="card mx-3">
+    					<div class="card-body bg-light">
+    						<div class="font-weight-bold">  <i class="fas fa-user-plus fa-xs"></i><a href="supplier.html" style="color: black;"> SUPPLIERS</a></div>
+    					</div>
+    				</div>
+    			</div>
+    			<div class="col-md-6 my-2">
+    				<div class="card mx-3">
+    					<div class="card-body bg-light">
+    						<div class="font-weight-bold">  <i class="fas fa-user-shield fa-xs"></i><a href="user.html" style="color: black;"> USERS</a></div>
+    					</div>
+    				</div>
+    			</div>
+    			<div class="col-md-6 my-2">
+    				<div class="card mx-3">
+    					<div class="card-body bg-light">
+    						<div class="font-weight-bold"> <i class="fas fa-user fa-xs"></i></i><a href="employee.html" style="color: black;"> EMPLOYEES</a></div>
+    					</div>
+    				</div>
+    			</div>
+    		</div>
+    	</div>
+    	
+    </div>
+
+
+
+
+</div>
+
+
+
+</body>
+</html>

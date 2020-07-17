@@ -1,0 +1,554 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Customer</title>
+    <link rel="stylesheet" href="../plugin/bootstrap/css/bootstrap.min.css"/>
+    <script src="../plugin/jquery/jquery.min.js"></script>
+    <script src="../plugin/bootstrap/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="../style/common.css"/>
+    <script src="../script/common.v1.js"></script>
+    <script src="../script/ui.v1.js"></script>
+
+    <script>
+
+        window.addEventListener("load", initialize);
+
+        //Initializing Functions
+
+        function initialize() {
+
+            btnAdd.addEventListener("click",btnAddMC);
+            btnClear.addEventListener("click",btnClearMC);
+            btnUpdate.addEventListener("click",btnUpdateMC);
+            btnDelete.addEventListener("click",btnDeleteMC);
+            btnSearch.addEventListener("click",btnSearchMC);
+            btnSearchClear.addEventListener("click",btnSearchClearMC);
+
+            privilages = httpRequest("../privilages?module=CUSTOMER","GET");
+
+            regexes = httpRequest("../regexes/customer","GET");
+            txtName.setAttribute("data-pattern",regexes.name.regex);
+            txtAddress.setAttribute("data-pattern",regexes.address.regex);
+            txtConname.setAttribute("data-pattern",regexes.contactname.regex);
+            txtNIC.setAttribute("data-pattern",regexes.nic.regex);
+            txtConnumber.setAttribute("data-pattern",regexes.contactno.regex);
+            txtPhone.setAttribute("data-pattern",regexes.phone.regex);
+            txtEmail.setAttribute("data-pattern",regexes.email.regex);
+            txtCredit.setAttribute("data-pattern",regexes.creditlimit.regex);
+
+
+            employees = httpRequest("../employees/list","GET");
+            customerstatuses = httpRequest("../customerstatuses/list","GET");
+
+
+            valid = "lightgreen";
+            invalid = "pink";
+            initial = "white";
+            updated = "khaki";
+            active = "khaki";
+
+            loadView();
+            loadForm();
+        }
+
+        function loadView() {
+
+            //Search Area
+            txtSearchName.value="";
+            txtSearchName.style.background = "";
+            fillCombo(cmbSearchstatus,"Status",customerstatuses,"status","");
+            cmbSearchstatus.style.background = "";
+
+
+            //Table Area
+            activerowno = "";
+            activepage = 1;
+            var query = "&name=&customerstatusid=";
+            loadTable(1,cmbPageSize.value,query);
+        }
+
+        function loadTable(page,size,query) {
+            page = page - 1;
+            customers = new Array();
+            var data = httpRequest("/customers?page="+page+"&size="+size+query,"GET");
+            if(data.content!= undefined) customers = data.content;
+            createPagination('pagination',data.totalPages, data.number+1,paginate);
+            fillTable('tblCustomer',customers,fillForm);
+            clearSelection(tblCustomer);
+            if(activerowno!="")selectRow(tblCustomer,activerowno,active);
+            window.location.href="#ui";
+        }
+
+        function paginate(page) {
+            var paginate;
+            if(oldcustomer==null){
+                paginate=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    paginate=true;
+                }else{
+                    paginate = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(paginate) {
+                activepage=page;
+                activerowno=""
+                loadSearchedTable();
+                loadForm();
+            }
+        }
+
+        function loadForm() {
+            customer = new Object();
+            oldcustomer = null;
+
+            fillCombo(cmbCustomerstatus,"",customerstatuses,"status","New");
+
+            fillCombo(cmbEmployee,"",employees,"callingname",session.getObject("user").employeeId.callingname);
+            customer.employeeId=JSON.parse(cmbEmployee.value);
+            cmbEmployee.disabled="disabled";
+
+            var today = new Date();
+            var month = today.getMonth()+1;
+            if(month<10) month = "0"+month;
+            var datee = today.getDate();
+            if(datee<10) datee = "0"+datee;
+
+            dteDOEnter.value=today.getFullYear()+"-"+month+"-"+datee;
+            //alert( dteDOEnter.value);
+
+            customer.date=dteDOEnter.value;
+            customer.customerstatusId=JSON.parse(cmbCustomerstatus.value);
+
+            txtName.value = "";
+            txtAddress.value="";
+            txtConname.value="";
+            txtPhone.value="";
+            txtEmail.value="";
+            txtNIC.value = "";
+            txtConnumber.value = "";
+            txtCredit.value = "500000.00";
+
+            customer.creditlimit=txtCredit.value;
+
+            setStyle(initial);
+            cmbCustomerstatus.style.background=valid;
+            cmbEmployee.style.background=valid;
+            txtCredit.style.background=valid;
+            dteDOEnter.style.background=valid
+            dteDOEnter.disabled="disabled";
+            txtCredit.disabled="disabled";
+
+            disableButtons(false, true, true);
+
+        }
+
+        function setStyle(style) {
+
+            txtName.style.background = style;
+            txtAddress.style.background = style;
+            txtConname.style.background = style;
+            txtNIC.style.background = style;
+            txtEmail.style.background = style;
+            dteDOEnter.style.background = style;
+            txtPhone.style.background = style;
+            txtConnumber.style.background = style;
+            txtCredit.style.background = style;
+            cmbCustomerstatus.style.background = style;
+
+        }
+
+        function disableButtons(add, upd, del) {
+            if (add || !privilages.add) btnAdd.setAttribute("disabled", "disabled");
+            else btnAdd.removeAttribute("disabled");
+
+            if (upd || !privilages.update) btnUpdate.setAttribute("disabled", "disabled");
+            else btnUpdate.removeAttribute("disabled");
+
+            if (del || !privilages.delete) btnDelete.setAttribute("disabled", "disabled");
+            else btnDelete.removeAttribute("disabled");
+
+        }
+
+
+        function getErrors() {
+
+            var errors = "";
+
+            if (customer.name == null)
+                errors = errors + "\n" + regexes.name.message;
+
+            if (customer.address == null)
+                errors = errors + "\n" + regexes.address.message;
+
+            if (customer.nic == null)
+                errors = errors + "\n" + regexes.nic.message;
+
+            if (customer.contactname == null)
+                errors = errors + "\n" + regexes.contactname.message;
+
+            if (customer.contactno == null)
+                errors = errors + "\n" + regexes.contactno.message;
+
+            if (customer.phone == null)
+                errors = errors + "\n" + regexes.phone.message;
+
+            if (customer.email == null)
+                errors = errors + "\n" + regexes.email.message;
+
+            if (customer.creditlimit == null)
+                errors = errors + "\n" + regexes.creditlimit.message;
+
+            if (customer.customerstatusId == null)
+                errors = errors + "\n" + "Customerstatus is Not Selected";
+
+
+            return errors;
+
+
+        }
+
+        function btnAddMC() {
+
+            var errors = getErrors();
+
+            if(errors=="") {
+                var option = window.confirm("Are you sure to add following Employee ?\n" +
+                    "\nCompany : " + customer.name +
+                    "\nAddress : " + customer.address +
+                    "\nPhone : " + customer.phone +
+                    "\nEmail : " + customer.email +
+                    "\nContact name : " + customer.contactname +
+                    "\nContact number : " + customer.contactno +
+                    "\nNIC : " + customer.nic +
+                    "\nEntered Date : " + customer.date +
+                    "\nCredit Limit : " + customer.creditlimit +
+                    "\nCustomer Status : " + customer.customerstatusId.status);
+
+                if(option==true) {
+                    var response = httpRequest("/customers","POST",customer);
+                    if(response=="0"){
+                        toast("<strong>Success !</strong> Saved Successfully","success");
+                        loadForm();
+                        activerowno = 1;
+                        loadSearchedTable();
+                    }
+                    else window.alert("Failed to Add as \n\n"+response);
+                }
+
+            }
+            else
+            { window.alert("You have following Errors\n"+errors); }
+
+        }
+
+        function btnClearMC() {
+            //Get Cofirmation from the User window.confirm();
+
+            var clear;
+            if(oldcustomer==null){
+                clear=true;
+            }else{
+                if(getErrors()==''&&getUpdates()==''){
+                    clear=true;
+                }else{
+                    clear = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+            if(clear) {
+                loadForm();
+                clearSelection(tblCustomer);
+            }
+
+
+
+
+
+        }
+
+        function fillForm(cus,rowno){
+            activerowno = rowno;
+            var filling;
+            if(oldcustomer==null){
+                filling=true;
+            }else{
+
+                if(getErrors()==''&&getUpdates()==''){
+                    filling=true;
+                }else{
+                    filling = window.confirm("Form has Some Errors or Update Values. " +
+                        "Are you sure to discard that changes ?");
+                }
+            }
+
+            if(filling) {
+
+                clearSelection(tblCustomer);
+                selectRow(tblCustomer,activerowno,active);
+
+                customer = JSON.parse(JSON.stringify(cus));
+                oldcustomer = JSON.parse(JSON.stringify(cus));
+
+                txtAddress.value = customer.address;
+                txtConname.value = customer.contactname;
+                txtName.value = customer.name;
+                txtConnumber.value = customer.contactno;
+                dteDOEnter.value = customer.date;
+                txtNIC.value = customer.nic;
+                txtPhone.value = customer.phone;
+                txtEmail.value = customer.email;
+                txtCredit.value = customer.creditlimit;
+
+                fillCombo(cmbEmployee, "Select Employee", employees, "callingname", customer.employeeId.callingname);
+
+                fillCombo(cmbCustomerstatus, "", customerstatuses, "status", customer.customerstatusId.status);
+
+                disableButtons(true, false, false);
+                setStyle(valid);
+            }
+        }
+
+        function getUpdates() {
+
+            var updates = "";
+
+            if(customer!=null && oldcustomer!=null) {
+
+                if (customer.name != oldcustomer.name)
+                    updates = updates + "\nCompany is Changed";
+
+                if (customer.address != oldcustomer.address)
+                    updates = updates + "\nAddress is Changed";
+
+                if (customer.nic != oldcustomer.nic)
+                    updates = updates + "\nNIC is Changed";
+
+                if (customer.contactname != oldcustomer.contactname)
+                    updates = updates + "\nContact name is Changed";
+
+                if (customer.contactno != oldcustomer.contactno)
+                    updates = updates + "\nContact number is Changed";
+
+                if (customer.phone != oldcustomer.phone)
+                    updates = updates + "\nPhone number is Changed";
+
+                if (customer.email != oldcustomer.email)
+                    updates = updates + "\nEmail is Changed";
+
+                if (customer.creditlimit != oldcustomer.creditlimit)
+                    updates = updates + "\nCredit Limit is Changed";
+
+                if (customer.customerstatusId != oldcustomer.customerstatusId)
+                    updates = updates + "\nCustomer status is Changed";
+
+                if (customer.employeeId != oldcustomer.employeeId)
+                    updates = updates + "\nEmployee is Changed";
+
+
+            }
+
+            return updates;
+        }
+
+        function btnUpdateMC() {
+            var errors = getErrors();
+            if (errors == "") {
+                var updates = getUpdates();
+                if (updates == "") window.alert("Nothing Updated!");
+                else {
+
+                    var option = window.confirm("\n\nAre your sure to update followings ! \n\n" + updates);
+                    if(option==true) {
+                        var response = httpRequest("/customers","PUT",customer);
+                        if(response=="0"){
+                            toast("<strong>Success !</strong> Updated Successfully","success");
+                            loadForm();
+                            loadSearchedTable();
+
+                        }
+                        else window.alert("Failed to Update as \n\n"+response);
+                    }
+
+
+                }
+            }
+            else
+                window.alert("You have following errors in your form\n\n"+getErrors());
+        }
+
+        function btnDeleteMC() {
+
+            var option = window.confirm("\n\nAre your sure to delete following ! \n\n" +
+                "Name : " +customer.name+ "\nStatus : " +customer.customerstatusId.status);
+
+            if(option==true) {
+                var response = httpRequest("/customers","DELETE",customer);
+                if(response=="0"){
+                    toast("<strong>Success !</strong> Deleted Successfully","success");
+                    loadForm();
+                    loadSearchedTable();
+
+                }
+                else window.alert("Failed to Delete as \n\n"+response);
+            }
+
+        }
+
+
+        //Search Functions
+
+        function loadSearchedTable() {
+            var name = txtSearchName.value;
+            var customerstatus = cmbSearchstatus.value;
+
+            var customerstatusid="";
+            if(customerstatus!="Status")
+            {  customerstatusid = JSON.parse(customerstatus).id;
+                cmbSearchstatus.style.background = active; }
+
+            if(name!=""){  txtSearchName.style.background = active; }
+
+
+            var query ="&name=&customerstatusid=";
+
+            if(name!="" || customerstatusid!="" )
+                query = "&name=" + name + "&customerstatusid=" + customerstatusid;
+
+            //window.alert(query);
+            loadTable(activepage, cmbPageSize.value, query);
+
+        }
+
+        function btnSearchMC(){
+            activepage=1;
+            loadSearchedTable();
+        }
+
+        function btnSearchClearMC(){
+            loadView();
+        }
+
+
+    </script>
+
+
+
+</head>
+
+<body style="height:1000px;">
+<div class="container-fluid" style="background-color: #0c5460">
+    <h3 style="color: #FFFFE3">CUSTOMER MANAGEMENT</h3>
+    <ul class="nav nav-tabs">
+        <li class="active"><a data-toggle="tab" href="#AddCustomer">Add Customer</a></li>
+        <li><a data-toggle="tab" href="#ViewCustomer">View Customer</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <div id="AddCustomer" class="tab-pane fade in active">
+            <div class="row" id="ui">
+                <div class="col-md-12">
+                    <div class="panel panel-primary" style="margin-top: 10px;">
+
+                        <div class="panel-body"   style="background-image: url('../image/station.jpg');background-repeat: no-repeat;background-size: 1100px 800px" >
+                            <div class="row">
+
+                                <div class="col-md-8 col-md-offset-2" id="form">
+                                    <form class="form-horizontal" onsubmit="return false" id="customerform" >
+
+                                        <script>
+
+                                            // Defining UI-Componnets and Layouts
+                                            // Default UI-Componnets and Layouts is coded in "ui.bitproject.earth.lk.js"
+
+                                            textField('customerform','txtName','Company<span style="color:red;font-size:20px">*<span>','Enter Name here','',4,"",'customer','name','oldcustomer');
+                                            textField('customerform','txtPhone','Phone Number<span style="color:red;font-size:20px">*<span>','Enter Phone number Here','',4,"",'customer','phone','oldcustomer');
+                                            textField('customerform','txtAddress','Address<span style="color:red;font-size:20px">*<span>','Enter Adress Here','',4,"",'customer','address','oldcustomer');
+                                            textField('customerform','txtEmail','Email<span style="color:red;font-size:20px">*<span>','Enter Email Here','',4,"",'customer','email','oldcustomer');
+                                            textField('customerform','txtConname','Contact Name<span style="color:red;font-size:20px">*<span>','Enter Contact name Here','',4,"",'customer','contactname','oldcustomer');
+                                            textField('customerform','txtConnumber','Contact Number<span style="color:red;font-size:20px">*<span>','Enter Contact number Here','',4,"",'customer','contactno','oldcustomer');
+                                            textField('customerform','txtNIC','NIC<span style="color:red;font-size:20px">*<span>','Enter NIC Here','',4,"",'customer','nic','oldcustomer');
+                                            dateField('customerform','dteDOEnter','Entered Date<span style="color:red;font-size:20px">*<span>','Select Enter Date',4,"",'customer','date','oldcustomer');
+                                            textField('customerform','txtCredit','Credit Limit<span style="color:red;font-size:20px">*<span>','Enter Credit Limit Here','',4,"",'customer','creditlimit','oldcustomer');
+                                            comboBox('customerform','cmbCustomerstatus','Customerstatus<span style="color:red;font-size:20px">*<span>',4,"",'c','customerstatusId','oldcustomer');
+                                            comboBox('customerform','cmbEmployee','Entered Employee<span style="color:red;font-size:20px">*<span>',4,'customerform','employeeId','oldcustomer');
+
+
+
+                                            // Custom UI-Componnets and Layouting
+
+                                        </script>
+
+
+
+
+                                        <div class="text-right">
+                                            <input class="btn btn-danger btn-sm" type="button" id="btnDelete" value="Delete" style="width: 15%"/>
+                                            <input class="btn btn-warning btn-sm" type="button" id="btnUpdate" value="Update" style="width: 15%"/>
+                                            <input class="btn btn-success btn-sm" type="button" id="btnAdd" value="Add" style="width: 17%"/>
+                                            <input class="btn btn-warning btn-sm" type="button" id="btnClear" value="Clear" style="width: 15%"/>
+                                        </div>
+
+
+                                    </form>
+
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="ViewCustomer" class="tab-pane fade ">
+
+            <div class="col-md-12" id="customerview">
+                <form class="form-inline" onsubmit="return false">
+                    <div class="form-group form-group-sm">
+                        <input placeholder="Search By Name" class="form-control" type="text" id="txtSearchName"/>
+                    </div>
+                    <div class="form-group form-group-sm">
+                        <select class="form-control" id="cmbSearchstatus"></select>
+                    </div>
+
+                    <input type="button" class="btn btn-warning btn-sm" value="Clear" id="btnSearchClear"/>
+                    <input type="button" class="btn btn-success btn-sm" value="Search" id="btnSearch"/>
+                </form>
+                <hr/>
+                <div class="table-responsive" id="tableParent">
+
+                    <script>
+
+
+                        var metadata = [
+
+                            {name:'Name',search:true,datatype:'text',property:'name'},
+                            {name:'Contact name',search:true,datatype:'text',property:'contactname'},
+                            {name:'Credit Limit',search:true,datatype:'text',property:'creditlimit'},
+                            {name:'Mobile',search:true,datatype:'text',property:'contactno'},
+                            {name:'Status',search:true,datatype:'text',property:'customerstatusId.status'}
+                        ];
+                        table("tableParent","tblCustomer",metadata,[3,10,15,30,500,1000],btnSearchMC,true);
+
+                    </script>
+
+
+                </div>
+                <ul id="pagination" class="pagination"></ul>
+            </div>
+        </div>
+        <!-- view eke div eka wahena thana -->
+
+
+    </div>
+    <!-- tab pane eke div eka wahena thana -->
+    <div id="err" style="display: none">
+        <h3>Error Log</h3>
+    </div>
+
+</div>
+</body>
+</html>
